@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { eq } from "drizzle-orm";
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { providerAccounts } from "@/db/schema";
 import type { ProviderAccountRow } from "@/types/providers";
 
 export default async function LinkedAccountsPage({
@@ -7,21 +10,21 @@ export default async function LinkedAccountsPage({
 }: {
   searchParams: Promise<{ spotify?: string; spotify_error?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await auth();
+  if (!session?.user?.id) {
+    return null;
+  }
+
   const params = await searchParams;
 
-  const { data: rows } = await supabase
-    .from("provider_accounts")
-    .select("*")
-    .eq("user_id", user!.id)
-    .order("created_at", { ascending: true });
+  const rows = await db
+    .select()
+    .from(providerAccounts)
+    .where(eq(providerAccounts.userId, session.user.id));
 
-  const accounts = (rows ?? []) as ProviderAccountRow[];
-  const spotify = accounts.find((a) => a.provider_name === "spotify");
-  const apple = accounts.find((a) => a.provider_name === "apple_music");
+  const accounts = rows as ProviderAccountRow[];
+  const spotify = accounts.find((a) => a.providerName === "spotify");
+  const apple = accounts.find((a) => a.providerName === "apple_music");
 
   return (
     <div className="mx-auto max-w-xl space-y-8">
@@ -51,7 +54,7 @@ export default async function LinkedAccountsPage({
               <h2 className="font-medium">Spotify</h2>
               <p className="mt-1 text-sm text-zinc-500">
                 {spotify
-                  ? `Linked · provider user ${spotify.provider_user_id}`
+                  ? `Linked · provider user ${spotify.providerUserId}`
                   : "Not connected"}
               </p>
             </div>
@@ -70,7 +73,7 @@ export default async function LinkedAccountsPage({
               <h2 className="font-medium">Apple Music</h2>
               <p className="mt-1 text-sm text-zinc-500">
                 {apple
-                  ? `Linked · ${apple.provider_user_id}`
+                  ? `Linked · ${apple.providerUserId}`
                   : "Structure ready — MusicKit + developer token flow in Phase 1 polish."}
               </p>
             </div>

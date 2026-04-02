@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { eq } from "drizzle-orm";
+import { auth } from "@/auth";
+import { db } from "@/db";
+import {
+  providerAccounts,
+  providerOauthCredentials,
+} from "@/db/schema";
 
 function appOrigin(request: Request) {
   const env = process.env.NEXT_PUBLIC_SITE_URL;
@@ -54,11 +59,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(accountsUrl);
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  const session = await auth();
+  if (!session?.user?.id) {
     return NextResponse.redirect(new URL("/login", origin));
   }
 
@@ -95,54 +97,61 @@ export async function GET(request: Request) {
 
   const spotifyUser = (await meRes.json()) as SpotifyUser;
 
-  const admin = createAdminClient();
-  const expiresAt = new Date(
-    Date.now() + tokens.expires_in * 1000,
-  ).toISOString();
+  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-  const { data: account, error: upsertError } = await admin
-    .from("provider_accounts")
-    .upsert(
-      {
-        user_id: user.id,
-        provider_name: "spotify",
-        provider_user_id: spotifyUser.id,
-        account_status: "linked",
-        last_synced_at: null,
+  const [account] = await db
+    .insert(providerAccounts)
+    .values({
+      userId: session.user.id,
+      providerName: "spotify",
+      providerUserId: spotifyUser.id,
+      accountStatus: "linked",
+      lastSyncedAt: null,
+    })
+    .onConflictDoUpdate({
+      target: [providerAccounts.userId, providerAccounts.providerName],
+      set: {
+        providerUserId: spotifyUser.id,
+        accountStatus: "linked",
+        updatedAt: new Date(),
       },
-      { onConflict: "user_id,provider_name" },
-    )
-    .select("id")
-    .single();
+    })
+    .returning({ id: providerAccounts.id });
 
-  if (upsertError || !account) {
+  if (!account) {
     accountsUrl.searchParams.set("spotify_error", "db_upsert");
     return NextResponse.redirect(accountsUrl);
   }
 
   let refreshToken = tokens.refresh_token ?? null;
   if (!refreshToken) {
-    const { data: existing } = await admin
-      .from("provider_oauth_credentials")
-      .select("refresh_token")
-      .eq("provider_account_id", account.id)
-      .maybeSingle();
-    refreshToken = existing?.refresh_token ?? null;
+    const [existing] = await db
+      .select({ refreshToken: providerOauthCredentials.refreshToken })
+      .from(providerOauthCredentials)
+      .where(eq(providerOauthCredentials.providerAccountId, account.id))
+      .limit(1);
+    refreshToken = existing?.refreshToken ?? null;
   }
 
-  const { error: credError } = await admin
-    .from("provider_oauth_credentials")
-    .upsert(
-      {
-        provider_account_id: account.id,
-        access_token: tokens.access_token,
-        refresh_token: refreshToken,
-        token_expires_at: expiresAt,
-      },
-      { onConflict: "provider_account_id" },
-    );
-
-  if (credError) {
+  try {
+    await db
+      .insert(providerOauthCredentials)
+      .values({
+        providerAccountId: account.id,
+        accessToken: tokens.access_token,
+        refreshToken,
+        tokenExpiresAt: expiresAt,
+      })
+      .onConflictDoUpdate({
+        target: providerOauthCredentials.providerAccountId,
+        set: {
+          accessToken: tokens.access_token,
+          refreshToken,
+          tokenExpiresAt: expiresAt,
+          updatedAt: new Date(),
+        },
+      });
+  } catch {
     accountsUrl.searchParams.set("spotify_error", "credentials");
     return NextResponse.redirect(accountsUrl);
   }

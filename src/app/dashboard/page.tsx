@@ -1,18 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { auth } from "@/auth";
 
 export default async function DashboardHomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, username")
-    .eq("id", user!.id)
-    .single();
-
+  const session = await auth();
+  const email = session?.user?.email ?? "";
   const name =
-    profile?.display_name ?? profile?.username ?? user?.email ?? "there";
+    session?.user?.name ?? (email ? email.split("@")[0] : "there");
 
   return (
     <div className="mx-auto max-w-2xl">

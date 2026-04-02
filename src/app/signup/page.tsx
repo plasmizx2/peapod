@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { signIn } from "next-auth/react";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -16,14 +16,27 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { error: signError } = await supabase.auth.signUp({
+    const registerRes = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = (await registerRes.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    if (!registerRes.ok) {
+      setLoading(false);
+      setError(data.error ?? "Could not create account.");
+      return;
+    }
+    const signRes = await signIn("credentials", {
       email,
       password,
+      redirect: false,
     });
     setLoading(false);
-    if (signError) {
-      setError(signError.message);
+    if (signRes?.error) {
+      setError("Account created — sign in manually.");
       return;
     }
     router.push("/dashboard");
