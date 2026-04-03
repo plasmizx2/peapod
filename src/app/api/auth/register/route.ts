@@ -76,6 +76,7 @@ export async function POST(request: Request) {
     if (
       msg.includes("ECONNREFUSED") ||
       msg.includes("getaddrinfo") ||
+      msg.includes("ENOTFOUND") ||
       msg.includes("timeout")
     ) {
       return NextResponse.json(
@@ -86,10 +87,37 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
+    if (
+      msg.includes("password authentication failed") ||
+      msg.includes("28P01") ||
+      msg.includes("authentication failed")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database rejected the connection (wrong user or password in DATABASE_URL). Fix credentials in your host’s environment variables.",
+        },
+        { status: 500 },
+      );
+    }
+    if (
+      msg.includes("certificate") ||
+      msg.includes("SSL") ||
+      msg.includes("UNABLE_TO_VERIFY") ||
+      msg.includes("self signed")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database SSL/TLS error. For managed Postgres (Neon, Render, etc.), use the connection string they provide, usually with ?sslmode=require.",
+        },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       {
         error:
-          "Could not save your account. If this persists, verify DATABASE_URL and AUTH setup on the server.",
+          "Could not save your account. This is usually a database issue: set DATABASE_URL on your server, run migrations (npm run db:push) against that database, and check host logs for [register]. AUTH_SECRET is for sign-in sessions, not this step.",
       },
       { status: 500 },
     );
