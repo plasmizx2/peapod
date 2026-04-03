@@ -5,7 +5,7 @@ Social music intelligence: personal patterns, group sessions, party voting — b
 ## Stack
 
 - **Next.js** (App Router) · **TypeScript** · **Tailwind CSS**
-- **Auth.js** (NextAuth v5) — email/password sessions (JWT)
+- **Auth.js** (NextAuth v5) — email/password + **Google** / **GitHub** OAuth (JWT)
 - **Drizzle ORM** + **postgres** driver → **Render Postgres** (or any Postgres)
 - Provider abstraction for **Spotify** and **Apple Music** (see `docs/`)
 
@@ -20,9 +20,12 @@ Social music intelligence: personal patterns, group sessions, party voting — b
 
 ## Setup
 
-1. Copy `.env.example` to `.env.local` and set **`DATABASE_URL`** (Render **External** URL for local dev), **`AUTH_SECRET`** (`openssl rand -base64 32`), **`AUTH_URL`**, **`NEXT_PUBLIC_SITE_URL`**, and Spotify keys. In [Spotify Developer Dashboard](https://developer.spotify.com/dashboard), add redirect URI `http://localhost:3000/api/auth/spotify/callback` (and your production URL for Render).
+1. Copy `.env.example` to `.env.local` and set **`DATABASE_URL`**, **`AUTH_SECRET`**, **`AUTH_URL`**, **`NEXT_PUBLIC_SITE_URL`**. For **Google / GitHub login**, add **`AUTH_GOOGLE_ID`** / **`AUTH_GOOGLE_SECRET`** and/or **`AUTH_GITHUB_ID`** / **`AUTH_GITHUB_SECRET`**, and register these redirect URLs in each provider’s console:  
+   - Google: `http://localhost:3000/api/auth/callback/google` (plus your production URL)  
+   - GitHub: `http://localhost:3000/api/auth/callback/github`  
+   For **Spotify (music linking)**, use [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) — redirect `http://localhost:3000/api/auth/spotify/callback`.
 
-2. Create tables: either run SQL **`drizzle/0000_init_auth_providers.sql`** in Render’s SQL shell / `psql`, or with env loaded run **`npm run db:push`** (Drizzle syncs `src/db/schema.ts`).
+2. Create / update tables: run **`npm run db:push`**, or apply SQL **`drizzle/0000_init_auth_providers.sql`** then **`drizzle/0001_oauth_nullable_password.sql`** if you created the DB before OAuth (makes `password_hash` nullable).
 
 3. Install and run:
 

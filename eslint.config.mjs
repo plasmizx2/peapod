@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Figma export bundle (reference only; main app is in src/)
+    "PeaPod web design brief/**",
   ]),
 ]);
 

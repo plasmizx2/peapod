@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { AuthSessionProvider } from "@/components/session-provider";
 import "./globals.css";
 
@@ -13,10 +13,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-display-fraunces",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
-  title: "PeaPod — social music intelligence",
-  description:
-    "Learn your listening patterns, blend taste with friends, and run the room with party voting.",
+  title: "PeaPod",
+  description: "Music that fits how you listen — solo, car, or the whole room.",
 };
 
 export default function RootLayout({
@@ -27,9 +31,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="relative flex min-h-full flex-col antialiased">
         <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>

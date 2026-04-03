@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Figma Make export — UI lives in src/components/figma; keep bundle local only
+PeaPod web design brief/

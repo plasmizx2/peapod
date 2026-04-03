@@ -1,26 +1,143 @@
 @import "tailwindcss";
 
+/* Sage peridot — accents only; UI sits on warm neutrals */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --sage-forest: #345c32;
+  --sage-olive: #9cac54;
+  --sage-mint: #a7f0dd;
+  --sage-leaf: #97cd97;
+  --paper: #f3f0e8;
+  --paper-deep: #e8e3d8;
+  --ink: #1c1917;
+  --ink-muted: #57534e;
+  --accent: #c15c41;
+  --accent-hover: #a84d36;
+  --background: var(--paper);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-sage-forest: #345c32;
+  --color-sage-olive: #9cac54;
+  --color-sage-mint: #a7f0dd;
+  --color-sage-leaf: #97cd97;
+  /* Figma export — marketing (cyber) */
+  --color-navy: #0a0e27;
+  --color-navy-light: #1a1f3a;
+  --color-deep-blue: #1e2749;
+  --color-electric-blue: #3b82f6;
+  --color-cyan: #06b6d4;
+  --color-cyan-bright: #22d3ee;
+  --color-purple: #8b5cf6;
+  --color-purple-light: #a78bfa;
+  --color-violet: #6366f1;
+  --color-orange: #ff6b2c;
+  --color-orange-bright: #ff8c4a;
+  --color-orange-glow: #ff9d5c;
+  --color-neon-green: #10b981;
+  --color-slate: #64748b;
+  --color-slate-light: #94a3b8;
+  /* Figma export — dashboard (warm) */
+  --color-cream: #faf8f5;
+  --color-forest-dark: #2f3a32;
+  --color-forest: #3d5240;
+  --color-moss: #6b6560;
+  --color-sage: #8fa688;
+  --color-mint: #d4e4d1;
+  --color-mint-light: #e8efe6;
+  --color-rust: #c86b54;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display-fraunces);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Film grain */
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(2%, -3%) scale(1.05);
+    opacity: 0.5;
   }
 }
 
+@keyframes eq-bounce {
+  0%,
+  100% {
+    height: 0.35rem;
+  }
+  50% {
+    height: 0.85rem;
+  }
+}
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.eq-bar {
+  animation: eq-bounce 0.85s ease-in-out infinite;
+}
+
+.landing-blob {
+  animation: drift 18s ease-in-out infinite;
+}
+
+.landing-blob-delayed {
+  animation: drift 22s ease-in-out infinite reverse;
+  animation-delay: -4s;
+}
+
+.animate-rise {
+  animation: fade-rise 0.7s ease-out both;
+}
+
+.animate-rise-delay-1 {
+  animation: fade-rise 0.75s ease-out 0.08s both;
+}
+
+.animate-rise-delay-2 {
+  animation: fade-rise 0.75s ease-out 0.16s both;
+}
+
+.animate-rise-delay-3 {
+  animation: fade-rise 0.75s ease-out 0.24s both;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display-fraunces), Georgia, serif;
 }

@@ -9,7 +9,8 @@ import {
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  /** Null when the account was created via OAuth only. */
+  passwordHash: text("password_hash"),
   name: text("name"),
   image: text("image"),
   emailVerified: timestamp("email_verified", { withTimezone: true }),

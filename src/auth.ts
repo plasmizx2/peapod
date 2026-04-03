@@ -1,9 +1,19 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import GitHub from "next-auth/providers/github";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { ensureUserFromOAuth } from "@/lib/auth/oauth-user";
+
+const googleEnabled =
+  Boolean(process.env.AUTH_GOOGLE_ID) &&
+  Boolean(process.env.AUTH_GOOGLE_SECRET);
+const githubEnabled =
+  Boolean(process.env.AUTH_GITHUB_ID) &&
+  Boolean(process.env.AUTH_GITHUB_SECRET);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -11,6 +21,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [
+    ...(googleEnabled
+      ? [
+          Google({
+            clientId: process.env.AUTH_GOOGLE_ID!,
+            clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
+    ...(githubEnabled
+      ? [
+          GitHub({
+            clientId: process.env.AUTH_GITHUB_ID!,
+            clientSecret: process.env.AUTH_GITHUB_SECRET!,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     Credentials({
       name: "credentials",
       credentials: {
@@ -28,7 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .from(users)
           .where(eq(users.email, email.toLowerCase().trim()))
           .limit(1);
-        if (!user) {
+        if (!user?.passwordHash) {
           return null;
         }
         const ok = await bcrypt.compare(String(password), user.passwordHash);
@@ -45,9 +73,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" || account?.provider === "github") {
+        if (!user.email) {
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
       if (user) {
-        token.sub = user.id;
+        if (
+          account?.provider === "google" ||
+          account?.provider === "github"
+        ) {
+          const email = user.email;
+          if (!email) {
+            return token;
+          }
+          const dbUser = await ensureUserFromOAuth(
+            email,
+            user.name,
+            user.image,
+          );
+          token.sub = dbUser.id;
+        } else {
+          token.sub = user.id;
+        }
       }
       return token;
     },

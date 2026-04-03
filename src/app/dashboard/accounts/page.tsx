@@ -1,9 +1,22 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
+import { Music } from "lucide-react";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { providerAccounts } from "@/db/schema";
 import type { ProviderAccountRow } from "@/types/providers";
+
+function spotifyConnectionHelp(code: string): string {
+  const messages: Record<string, string> = {
+    access_denied: "Sign-in cancelled. Try again anytime.",
+    invalid_state: "That timed out. Hit Connect Spotify again.",
+    missing_code: "Couldn’t finish. Try connecting again.",
+    server_config: "Spotify isn’t set up here yet. Check back soon.",
+    token_exchange: "Spotify hiccupped. Try again in a moment.",
+    profile_fetch: "Couldn’t load your Spotify profile. Try again.",
+  };
+  return messages[code] ?? "Couldn’t connect Spotify. Try again.";
+}
 
 export default async function LinkedAccountsPage({
   searchParams,
@@ -27,66 +40,89 @@ export default async function LinkedAccountsPage({
   const apple = accounts.find((a) => a.providerName === "apple_music");
 
   return (
-    <div className="mx-auto max-w-xl space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Linked accounts</h1>
-        <p className="mt-2 text-sm text-zinc-500">
-          Connect streaming providers so PeaPod can learn your patterns. Tokens stay
-          on the server — never exposed to the browser.
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-forest-dark sm:text-5xl">
+          Music services
+        </h1>
+        <p className="mt-3 text-base text-moss sm:text-lg">
+          Link your streaming. Your Spotify sign-in stays on our servers — not in
+          your browser.
         </p>
       </div>
 
       {params.spotify === "connected" ? (
-        <p className="rounded-lg border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
-          Spotify connected successfully.
+        <p className="rounded-2xl border border-sage/30 bg-sage/10 px-5 py-4 text-sm text-forest-dark">
+          Spotify connected.
         </p>
       ) : null}
       {params.spotify_error ? (
-        <p className="rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-          Could not connect Spotify ({params.spotify_error}). Try again.
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+          {spotifyConnectionHelp(params.spotify_error)}
         </p>
       ) : null}
 
-      <ul className="space-y-4">
-        <li className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="font-medium">Spotify</h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                {spotify
-                  ? `Linked · provider user ${spotify.providerUserId}`
-                  : "Not connected"}
-              </p>
-            </div>
+      <div className="relative overflow-hidden rounded-3xl border border-forest/10 bg-cream p-8 shadow-2xl sm:p-10">
+        <div
+          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(29, 185, 84, 0.12) 0%, transparent 70%)",
+          }}
+        />
+        <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-start">
+          <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-3xl bg-[#1DB954]/10 shadow-lg">
+            <Music className="h-10 w-10 text-[#1DB954]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="mb-2 text-2xl font-semibold text-forest-dark sm:text-3xl">
+              Spotify
+            </h2>
+            <p className="mb-6 text-sm leading-relaxed text-moss sm:text-base">
+              {spotify
+                ? "Connected — we can read your listening activity where you’ve allowed it."
+                : "Not connected yet. Connect to sync your taste."}
+            </p>
             <Link
               href="/api/auth/spotify"
-              className="rounded-lg bg-[#1DB954] px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1DB954] px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-[#1ed760]"
             >
               {spotify ? "Reconnect" : "Connect Spotify"}
             </Link>
           </div>
-        </li>
+        </div>
+      </div>
 
-        <li className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="font-medium">Apple Music</h2>
-              <p className="mt-1 text-sm text-zinc-500">
-                {apple
-                  ? `Linked · ${apple.providerUserId}`
-                  : "Structure ready — MusicKit + developer token flow in Phase 1 polish."}
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled
-              className="cursor-not-allowed rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-500"
-            >
-              Coming soon
-            </button>
+      <div className="rounded-3xl border border-forest/10 bg-cream/80 p-8 opacity-95 sm:p-10">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+          <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-3xl bg-moss/10">
+            <Music className="h-10 w-10 text-moss" />
           </div>
-        </li>
-      </ul>
+          <div>
+            <h2 className="mb-2 flex flex-wrap items-center gap-3 text-2xl font-semibold text-forest-dark sm:text-3xl">
+              Apple Music
+              <span className="rounded-full bg-moss/20 px-3 py-1 text-xs font-medium text-moss">
+                Coming soon
+              </span>
+            </h2>
+            <p className="text-sm leading-relaxed text-moss sm:text-base">
+              {apple
+                ? "Connected where supported."
+                : "We’re still building Apple Music support. Spotify first."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-sage/30 bg-sage/10 p-8">
+        <h3 className="mb-3 text-lg font-semibold text-forest-dark">
+          What we use your data for
+        </h3>
+        <p className="text-sm leading-relaxed text-moss">
+          Timestamps, plays, skips — the boring stuff that shows habits. No
+          selling your taste to advertisers.
+        </p>
+      </div>
     </div>
   );
 }
