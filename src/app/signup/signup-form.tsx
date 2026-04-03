@@ -28,12 +28,21 @@ export function SignupForm({ showGoogle, showGithub }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const data = (await registerRes.json().catch(() => ({}))) as {
-      error?: string;
-    };
+    const raw = await registerRes.text();
+    let data: { error?: string } = {};
+    try {
+      data = raw ? (JSON.parse(raw) as { error?: string }) : {};
+    } catch {
+      data = {};
+    }
     if (!registerRes.ok) {
       setLoading(false);
-      setError(data.error ?? "Could not create account.");
+      setError(
+        data.error ??
+          (registerRes.status >= 500
+            ? `Server error (${registerRes.status}). Check deployment logs and DATABASE_URL.`
+            : `Could not create account (${registerRes.status}).`),
+      );
       return;
     }
     const signRes = await signIn("credentials", {
@@ -128,8 +137,8 @@ export function SignupForm({ showGoogle, showGithub }: Props) {
             disabled={loading || !!oauthLoading}
             className="relative h-12 w-full overflow-hidden rounded-xl font-semibold disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)",
-              boxShadow: "0 0 40px rgba(59, 130, 246, 0.5)",
+              background: "linear-gradient(135deg, #4d8f6e 0%, #5fa88a 100%)",
+              boxShadow: "0 0 36px rgba(77, 143, 110, 0.45)",
             }}
           >
             <motion.div

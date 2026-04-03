@@ -114,8 +114,8 @@ export function LoginForm({ showGoogle, showGithub }: Props) {
             disabled={loading || !!oauthLoading}
             className="relative h-12 w-full overflow-hidden rounded-xl font-semibold disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)",
-              boxShadow: "0 0 40px rgba(16, 185, 129, 0.5)",
+              background: "linear-gradient(135deg, #4d8f6e 0%, #5fa88a 100%)",
+              boxShadow: "0 0 36px rgba(77, 143, 110, 0.45)",
             }}
           >
             <motion.div

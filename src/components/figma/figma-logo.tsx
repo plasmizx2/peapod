@@ -30,16 +30,16 @@ export function Logo({ size = "md", showText = true }: LogoProps) {
         <defs>
           {/* Glossy gradient */}
           <linearGradient id="podGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#3b82f6" />
-            <stop offset="50%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#10b981" />
+            <stop offset="0%" stopColor="#345c32" />
+            <stop offset="50%" stopColor="#5fa88a" />
+            <stop offset="100%" stopColor="#97cd97" />
           </linearGradient>
 
-          {/* Iridescent gradient for outline */}
+          {/* Outline — olive into forest */}
           <linearGradient id="outlineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#8b5cf6" />
-            <stop offset="50%" stopColor="#06b6d4" />
-            <stop offset="100%" stopColor="#10b981" />
+            <stop offset="0%" stopColor="#9cac54" />
+            <stop offset="50%" stopColor="#5fa88a" />
+            <stop offset="100%" stopColor="#345c32" />
           </linearGradient>
 
           {/* Glow effect */}
@@ -103,12 +103,12 @@ export function Logo({ size = "md", showText = true }: LogoProps) {
           transition={{ delay: 0.3, duration: 0.6, type: "spring", bounce: 0.4 }}
         />
 
-        {/* Peas inside - neon */}
+        {/* Peas */}
         <motion.circle
           cx="20"
           cy="16"
           r="2.5"
-          fill="#22d3ee"
+          fill="#a7f0dd"
           filter="url(#glow)"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -118,7 +118,7 @@ export function Logo({ size = "md", showText = true }: LogoProps) {
           cx="20"
           cy="20"
           r="2.5"
-          fill="#10b981"
+          fill="#97cd97"
           filter="url(#glow)"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -128,7 +128,7 @@ export function Logo({ size = "md", showText = true }: LogoProps) {
           cx="20"
           cy="24"
           r="2.5"
-          fill="#8b5cf6"
+          fill="#9cac54"
           filter="url(#glow)"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}

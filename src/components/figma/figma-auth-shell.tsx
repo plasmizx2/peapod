@@ -30,7 +30,7 @@ export function FigmaAuthShell({ variant, children, footer }: Props) {
         className="absolute top-20 right-20 h-96 w-96 rounded-full blur-3xl"
         style={{
           background:
-            "radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(151, 205, 151, 0.28) 0%, transparent 70%)",
         }}
         animate={{
           scale: [1, 1.3, 1],
@@ -42,7 +42,7 @@ export function FigmaAuthShell({ variant, children, footer }: Props) {
         className="absolute bottom-20 left-20 h-96 w-96 rounded-full blur-3xl"
         style={{
           background:
-            "radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(156, 172, 84, 0.26) 0%, transparent 70%)",
         }}
         animate={{
           scale: [1.2, 1, 1.2],
@@ -68,14 +68,14 @@ export function FigmaAuthShell({ variant, children, footer }: Props) {
           transition={{ duration: 0.6, delay: 0.1 }}
           style={{
             boxShadow:
-              "0 0 80px rgba(59, 130, 246, 0.2), inset 0 0 80px rgba(59, 130, 246, 0.03)",
+              "0 0 72px rgba(77, 143, 110, 0.18), inset 0 0 72px rgba(77, 143, 110, 0.03)",
           }}
         >
           <motion.div
             className="absolute inset-0 rounded-3xl"
             style={{
               background:
-                "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.2), rgba(99, 102, 241, 0.2))",
+                "linear-gradient(135deg, rgba(151, 205, 151, 0.18), rgba(77, 143, 110, 0.2), rgba(156, 172, 84, 0.18))",
               opacity: 0.5,
             }}
             animate={{

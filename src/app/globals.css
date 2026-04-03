@@ -29,22 +29,22 @@
   --color-sage-olive: #9cac54;
   --color-sage-mint: #a7f0dd;
   --color-sage-leaf: #97cd97;
-  /* Figma export — marketing (cyber) */
-  --color-navy: #0a0e27;
-  --color-navy-light: #1a1f3a;
-  --color-deep-blue: #1e2749;
-  --color-electric-blue: #3b82f6;
-  --color-cyan: #06b6d4;
-  --color-cyan-bright: #22d3ee;
-  --color-purple: #8b5cf6;
-  --color-purple-light: #a78bfa;
-  --color-violet: #6366f1;
-  --color-orange: #ff6b2c;
-  --color-orange-bright: #ff8c4a;
-  --color-orange-glow: #ff9d5c;
-  --color-neon-green: #10b981;
-  --color-slate: #64748b;
-  --color-slate-light: #94a3b8;
+  /* Marketing / auth — warm forest night (sage, not cyber neon) */
+  --color-navy: #101814;
+  --color-navy-light: #1c2620;
+  --color-deep-blue: #2a332c;
+  --color-electric-blue: #4d8f6e;
+  --color-cyan: #5fa88a;
+  --color-cyan-bright: #8fd4b8;
+  --color-purple: #9cac54;
+  --color-purple-light: #b8c97a;
+  --color-violet: #7a8f5c;
+  --color-orange: #c86b54;
+  --color-orange-bright: #d4876a;
+  --color-orange-glow: #e09a82;
+  --color-neon-green: #97cd97;
+  --color-slate: #7a8a84;
+  --color-slate-light: #b8c4be;
   /* Figma export — dashboard (warm) */
   --color-cream: #faf8f5;
   --color-forest-dark: #2f3a32;

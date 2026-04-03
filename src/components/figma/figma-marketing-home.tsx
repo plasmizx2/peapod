@@ -16,7 +16,7 @@ function WaveBar({
   return (
     <motion.div
       className="w-1 rounded-full"
-      style={{ backgroundColor: "#22d3ee" }}
+      style={{ backgroundColor: "#8fd4b8" }}
       animate={{
         height: isPlaying ? ["12px", "24px", "12px"] : "12px",
       }}
@@ -57,11 +57,11 @@ export function FigmaMarketingHome() {
 
   return (
     <div className="min-h-screen bg-navy overflow-hidden relative">
-      {/* Glowing gradient orbs - cyber style */}
+      {/* Glowing gradient orbs — soft sage */}
       <motion.div
         className="fixed top-20 right-20 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none"
         style={{
-          background: "radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(77, 143, 110, 0.35) 0%, rgba(156, 172, 84, 0.22) 50%, transparent 70%)",
           x: useTransform(cursorXSpring, (x) => x * 0.05),
           y: useTransform(cursorYSpring, (y) => y * 0.05),
         }}
@@ -74,7 +74,7 @@ export function FigmaMarketingHome() {
       <motion.div
         className="fixed bottom-20 left-20 w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"
         style={{
-          background: "radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, rgba(16, 185, 129, 0.2) 50%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(95, 168, 138, 0.3) 0%, rgba(151, 205, 151, 0.22) 50%, transparent 70%)",
           x: useTransform(cursorXSpring, (x) => x * -0.03),
           y: useTransform(cursorYSpring, (y) => y * -0.03),
         }}
@@ -91,8 +91,8 @@ export function FigmaMarketingHome() {
           className="w-full h-full"
           style={{
             backgroundImage: `
-              linear-gradient(to right, rgba(59, 130, 246, 0.3) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(59, 130, 246, 0.3) 1px, transparent 1px)
+              linear-gradient(to right, rgba(77, 143, 110, 0.25) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(77, 143, 110, 0.25) 1px, transparent 1px)
             `,
             backgroundSize: "50px 50px",
           }}
@@ -107,8 +107,8 @@ export function FigmaMarketingHome() {
       <motion.header
         className="border-b backdrop-blur-xl sticky top-0 z-50"
         style={{
-          borderColor: "rgba(59, 130, 246, 0.2)",
-          backgroundColor: "rgba(26, 31, 58, 0.8)"
+          borderColor: "rgba(77, 143, 110, 0.22)",
+          backgroundColor: "rgba(28, 38, 32, 0.85)"
         }}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
@@ -158,7 +158,7 @@ export function FigmaMarketingHome() {
                 left: `${15 + i * 12}%`,
                 top: `${20 + (i % 3) * 25}%`,
                 filter: "drop-shadow(0 0 10px currentColor)",
-                color: i % 3 === 0 ? "#3b82f6" : i % 3 === 1 ? "#06b6d4" : "#8b5cf6",
+                color: i % 3 === 0 ? "#4d8f6e" : i % 3 === 1 ? "#5fa88a" : "#9cac54",
                 opacity: 0.2,
               }}
               animate={{
@@ -189,7 +189,7 @@ export function FigmaMarketingHome() {
                 className="inline-block bg-gradient-to-r from-cyan-bright via-electric-blue to-purple bg-clip-text text-transparent"
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 300 }}
-                style={{ filter: "drop-shadow(0 0 20px rgba(59, 130, 246, 0.5))" }}
+                style={{ filter: "drop-shadow(0 0 20px rgba(77, 143, 110, 0.45))" }}
               >
                 Skip{" "}
               </motion.span>
@@ -202,7 +202,7 @@ export function FigmaMarketingHome() {
               <motion.span
                 className="inline-block bg-gradient-to-r from-orange via-orange-bright to-cyan bg-clip-text text-transparent"
                 whileHover={{ scale: 1.05 }}
-                style={{ filter: "drop-shadow(0 0 20px rgba(255, 107, 44, 0.5))" }}
+                style={{ filter: "drop-shadow(0 0 20px rgba(200, 107, 84, 0.45))" }}
               >
                 Loop{" "}
               </motion.span>
@@ -217,7 +217,7 @@ export function FigmaMarketingHome() {
                 className="inline-block bg-gradient-to-r from-purple via-orange-bright to-cyan-bright bg-clip-text text-transparent"
                 whileHover={{ scale: 1.1 }}
                 transition={{ type: "spring", stiffness: 400 }}
-                style={{ filter: "drop-shadow(0 0 30px rgba(139, 92, 246, 0.6))" }}
+                style={{ filter: "drop-shadow(0 0 28px rgba(156, 172, 84, 0.45))" }}
               >
                 We&apos;re watching.
               </motion.span>
@@ -246,10 +246,10 @@ export function FigmaMarketingHome() {
               <motion.button
                 className="relative w-full sm:w-auto px-10 py-5 rounded-2xl font-semibold text-lg overflow-hidden group"
                 style={{
-                  background: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #10b981 100%)",
-                  boxShadow: "0 0 40px rgba(59, 130, 246, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.1)",
+                  background: "linear-gradient(135deg, #4d8f6e 0%, #5fa88a 45%, #97cd97 100%)",
+                  boxShadow: "0 0 40px rgba(77, 143, 110, 0.45), inset 0 0 20px rgba(255, 255, 255, 0.08)",
                 }}
-                whileHover={{ scale: 1.05, boxShadow: "0 0 60px rgba(59, 130, 246, 0.8), inset 0 0 30px rgba(255, 255, 255, 0.2)" }}
+                whileHover={{ scale: 1.05, boxShadow: "0 0 52px rgba(77, 143, 110, 0.55), inset 0 0 28px rgba(255, 255, 255, 0.12)" }}
                 whileTap={{ scale: 0.98 }}
               >
                 <motion.div
@@ -272,12 +272,12 @@ export function FigmaMarketingHome() {
             <Link href="/login">
               <motion.button
                 className="w-full sm:w-auto px-10 py-5 border-2 border-electric-blue/40 rounded-2xl font-semibold text-lg backdrop-blur-sm bg-electric-blue/5"
-                style={{ color: "#22d3ee" }}
+                style={{ color: "#8fd4b8" }}
                 whileHover={{ 
                   scale: 1.05, 
-                  borderColor: "rgba(59, 130, 246, 0.8)",
-                  backgroundColor: "rgba(59, 130, 246, 0.1)",
-                  boxShadow: "0 0 30px rgba(59, 130, 246, 0.3)"
+                  borderColor: "rgba(77, 143, 110, 0.75)",
+                  backgroundColor: "rgba(77, 143, 110, 0.12)",
+                  boxShadow: "0 0 28px rgba(77, 143, 110, 0.28)"
                 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -294,16 +294,16 @@ export function FigmaMarketingHome() {
             transition={{ delay: 1, duration: 0.8 }}
           >
             {[
-              { icon: Clock, label: "Time context", gradient: "from-cyan to-electric-blue", color: "#06b6d4" },
-              { icon: Repeat, label: "Loop detection", gradient: "from-purple to-orange", color: "#8b5cf6" },
-              { icon: Zap, label: "Skip patterns", gradient: "from-orange to-orange-bright", color: "#ff6b2c" },
+              { icon: Clock, label: "Time context", gradient: "from-cyan to-electric-blue", color: "#5fa88a" },
+              { icon: Repeat, label: "Loop detection", gradient: "from-purple to-orange", color: "#9cac54" },
+              { icon: Zap, label: "Skip patterns", gradient: "from-orange to-orange-bright", color: "#c86b54" },
             ].map((item, i) => (
               <motion.div
                 key={item.label}
                 className="relative backdrop-blur-xl rounded-2xl p-5 border cursor-pointer overflow-hidden group"
                 style={{
-                  backgroundColor: "rgba(26, 31, 58, 0.5)",
-                  borderColor: "rgba(59, 130, 246, 0.2)"
+                  backgroundColor: "rgba(28, 38, 32, 0.55)",
+                  borderColor: "rgba(77, 143, 110, 0.22)"
                 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -311,8 +311,8 @@ export function FigmaMarketingHome() {
                 whileHover={{ 
                   scale: 1.05, 
                   y: -5,
-                  borderColor: "rgba(59, 130, 246, 0.5)",
-                  boxShadow: "0 20px 40px rgba(59, 130, 246, 0.2)"
+                  borderColor: "rgba(77, 143, 110, 0.45)",
+                  boxShadow: "0 20px 40px rgba(77, 143, 110, 0.18)"
                 }}
               >
                 {/* Gradient overlay on hover */}
@@ -337,13 +337,13 @@ export function FigmaMarketingHome() {
         </div>
       </section>
 
-      {/* Features - Dark with neon accents */}
+      {/* Features — dark cards, sage accents */}
       <section className="relative py-24 sm:py-40 overflow-hidden">
         {/* Animated scanline effect */}
         <motion.div
           className="absolute inset-0 opacity-5"
           style={{
-            background: "linear-gradient(0deg, transparent 0%, rgba(59, 130, 246, 0.5) 50%, transparent 100%)",
+            background: "linear-gradient(0deg, transparent 0%, rgba(77, 143, 110, 0.35) 50%, transparent 100%)",
             height: "200%",
           }}
           animate={{ y: ["-50%", "0%"] }}
@@ -392,8 +392,8 @@ export function FigmaMarketingHome() {
                 desc: "Live voting, queue requests, host veto power. Turn your living room into a working music democracy.",
                 status: "Soon",
                 gradient: "from-orange to-orange-bright",
-                color: "#ff6b2c",
-                shadow: "rgba(255, 107, 44, 0.3)"
+                color: "#c86b54",
+                shadow: "rgba(200, 107, 84, 0.28)"
               },
             ].map((feature, i) => (
               <motion.div
@@ -408,8 +408,8 @@ export function FigmaMarketingHome() {
                   className="backdrop-blur-xl bg-navy-light/50 rounded-3xl p-8 border border-electric-blue/20 h-full cursor-pointer relative overflow-hidden"
                   whileHover={{
                     scale: 1.03,
-                    borderColor: "rgba(59, 130, 246, 0.5)",
-                    boxShadow: "0 30px 60px rgba(59, 130, 246, 0.3)",
+                    borderColor: "rgba(77, 143, 110, 0.45)",
+                    boxShadow: "0 30px 60px rgba(77, 143, 110, 0.22)",
                   }}
                   transition={{ type: "spring", stiffness: 300 }}
                 >
@@ -425,12 +425,12 @@ export function FigmaMarketingHome() {
                       whileHover={{ rotate: 360, scale: 1.1 }}
                       transition={{ duration: 0.6 }}
                       style={{ 
-                        boxShadow: `0 0 30px ${feature.shadow || (i === 0 ? "rgba(6, 182, 212, 0.3)" : "rgba(139, 92, 246, 0.3)")}`
+                        boxShadow: `0 0 30px ${feature.shadow || (i === 0 ? "rgba(95, 168, 138, 0.28)" : "rgba(156, 172, 84, 0.28)")}`
                       }}
                     >
                       <feature.icon className="w-8 h-8" style={{ 
                         filter: "drop-shadow(0 0 10px currentColor)",
-                        color: feature.color || (i === 0 ? "#06b6d4" : "#8b5cf6")
+                        color: feature.color || (i === 0 ? "#5fa88a" : "#9cac54")
                       }} />
                     </motion.div>
 
@@ -441,7 +441,7 @@ export function FigmaMarketingHome() {
 
                     <motion.span
                       className={`inline-block text-sm px-4 py-2 bg-gradient-to-r ${feature.gradient} rounded-full font-medium`}
-                      style={{ color: "#0a0e27" }}
+                      style={{ color: "#101814" }}
                       whileHover={{ scale: 1.1 }}
                     >
                       {feature.status}
@@ -454,7 +454,7 @@ export function FigmaMarketingHome() {
         </div>
       </section>
 
-      {/* CTA with iridescent effect */}
+      {/* CTA — soft sage glow */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24 sm:py-32">
         <motion.div
           className="relative backdrop-blur-xl bg-navy-light/50 rounded-[3rem] p-12 sm:p-20 border border-electric-blue/30 shadow-2xl overflow-hidden"
@@ -463,14 +463,14 @@ export function FigmaMarketingHome() {
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
           style={{
-            boxShadow: "0 0 100px rgba(59, 130, 246, 0.3), inset 0 0 100px rgba(59, 130, 246, 0.05)"
+            boxShadow: "0 0 90px rgba(77, 143, 110, 0.22), inset 0 0 80px rgba(77, 143, 110, 0.04)"
           }}
         >
           {/* Animated iridescent blobs */}
           <motion.div
             className="absolute -right-32 -top-32 w-96 h-96 rounded-full"
             style={{
-              background: "radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(156, 172, 84, 0.35) 0%, rgba(77, 143, 110, 0.2) 50%, transparent 70%)",
             }}
             animate={{
               scale: [1, 1.3, 1],
@@ -483,7 +483,7 @@ export function FigmaMarketingHome() {
           <motion.div
             className="absolute -left-20 -bottom-20 w-80 h-80 rounded-full"
             style={{
-              background: "radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(6, 182, 212, 0.2) 50%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(151, 205, 151, 0.35) 0%, rgba(95, 168, 138, 0.2) 50%, transparent 70%)",
             }}
             animate={{
               scale: [1.2, 1, 1.2],
@@ -521,13 +521,13 @@ export function FigmaMarketingHome() {
               <motion.button
                 className="relative px-12 py-6 rounded-2xl font-bold text-lg overflow-hidden"
                 style={{
-                  background: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 50%, #10b981 100%)",
-                  boxShadow: "0 0 60px rgba(59, 130, 246, 0.6), inset 0 0 30px rgba(255, 255, 255, 0.1)",
-                  color: "#0a0e27"
+                  background: "linear-gradient(135deg, #4d8f6e 0%, #5fa88a 45%, #97cd97 100%)",
+                  boxShadow: "0 0 52px rgba(77, 143, 110, 0.45), inset 0 0 28px rgba(255, 255, 255, 0.08)",
+                  color: "#101814"
                 }}
                 whileHover={{ 
                   scale: 1.05,
-                  boxShadow: "0 0 80px rgba(59, 130, 246, 0.9), inset 0 0 40px rgba(255, 255, 255, 0.2)"
+                  boxShadow: "0 0 68px rgba(77, 143, 110, 0.5), inset 0 0 36px rgba(255, 255, 255, 0.12)"
                 }}
                 whileTap={{ scale: 0.98 }}
               >
