@@ -4,6 +4,25 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 
+/** Drizzle/postgres often nest the real `PostgresError` on `cause`. */
+function errorText(err: unknown): string {
+  const parts: string[] = [];
+  let e: unknown = err;
+  for (let depth = 0; e && depth < 6; depth++) {
+    if (e instanceof Error) {
+      parts.push(e.message);
+      e = e.cause;
+    } else if (e && typeof e === "object" && "message" in e) {
+      parts.push(String((e as { message: unknown }).message));
+      break;
+    } else {
+      parts.push(String(e));
+      break;
+    }
+  }
+  return parts.join(" | ");
+}
+
 export async function POST(request: Request) {
   let body: { email?: string; password?: string; name?: string };
   try {
@@ -54,8 +73,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[register]", err);
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("DATABASE_URL is not set")) {
+    const msg = errorText(err);
+    const lower = msg.toLowerCase();
+    if (lower.includes("database_url is not set")) {
       return NextResponse.json(
         {
           error:
@@ -64,7 +84,7 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
-    if (msg.includes("does not exist") || msg.includes("relation")) {
+    if (lower.includes("does not exist") || lower.includes("relation")) {
       return NextResponse.json(
         {
           error:
@@ -74,10 +94,11 @@ export async function POST(request: Request) {
       );
     }
     if (
-      msg.includes("ECONNREFUSED") ||
-      msg.includes("getaddrinfo") ||
-      msg.includes("ENOTFOUND") ||
-      msg.includes("timeout")
+      lower.includes("econnrefused") ||
+      lower.includes("getaddrinfo") ||
+      lower.includes("enotfound") ||
+      lower.includes("timeout") ||
+      lower.includes("eai_again")
     ) {
       return NextResponse.json(
         {
@@ -88,9 +109,9 @@ export async function POST(request: Request) {
       );
     }
     if (
-      msg.includes("password authentication failed") ||
-      msg.includes("28P01") ||
-      msg.includes("authentication failed")
+      lower.includes("password authentication failed") ||
+      lower.includes("28p01") ||
+      lower.includes("authentication failed")
     ) {
       return NextResponse.json(
         {
@@ -101,10 +122,11 @@ export async function POST(request: Request) {
       );
     }
     if (
-      msg.includes("certificate") ||
-      msg.includes("SSL") ||
-      msg.includes("UNABLE_TO_VERIFY") ||
-      msg.includes("self signed")
+      lower.includes("certificate") ||
+      lower.includes("ssl") ||
+      lower.includes("unable_to_verify") ||
+      lower.includes("self signed") ||
+      lower.includes("tls")
     ) {
       return NextResponse.json(
         {
@@ -112,6 +134,44 @@ export async function POST(request: Request) {
             "Database SSL/TLS error. For managed Postgres (Neon, Render, etc.), use the connection string they provide, usually with ?sslmode=require.",
         },
         { status: 500 },
+      );
+    }
+    if (
+      lower.includes("duplicate key") ||
+      lower.includes("unique constraint") ||
+      lower.includes("23505")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "An account with this email already exists (or a race while saving). Try signing in.",
+        },
+        { status: 409 },
+      );
+    }
+    if (
+      lower.includes("pg_hba.conf") ||
+      lower.includes("no pg_hba") ||
+      lower.includes("must be owner")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database refused the connection (host/network or permissions). Check your provider’s allowed IPs and DATABASE_URL.",
+        },
+        { status: 500 },
+      );
+    }
+    if (
+      lower.includes("too many connections") ||
+      lower.includes("53300")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Database is at its connection limit. Retry in a moment or raise the limit on your Postgres plan.",
+        },
+        { status: 503 },
       );
     }
     return NextResponse.json(
