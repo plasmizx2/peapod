@@ -49,7 +49,7 @@ Structured **listening context** (driving vs desk, group session vs solo, who wa
 16. **CI on every PR** — `npm run lint` + `npm run build`; optional Playwright smoke for auth + dashboard.
 17. **Rate limits & cost** — review Spotify API usage, search limits, session SSE cadence; add Redis or similar if you multi-instance.
 18. **Observability** — structured logs for API routes, Spotify failures, DB slow queries; error tracking (e.g. Sentry) optional.
-20. **Strategic fork** — choose one to prototype next: **(a)** remote synchronized listen (Web Playback SDK + Premium), **(b)** native/share sheet, or **(c)** deeper taste/ML on existing stats.
+20. **Strategic fork** — choose one to prototype next: **(a)** remote synchronized listen — e.g. **public / follow-along lobby**: everyone joins a session, queues/votes stay shared, but **each person hears through their own headphones** (workout, office, run) while following the same “now playing” progression — requires **Spotify Web Playback SDK** (browser) or app playback + **Premium** norms, plus sync/timing work; **not** the same as today’s one-speaker host device. **(b)** native/share sheet, or **(c)** deeper taste/ML on existing stats.
 
 *(Security and small hardening passes are intentionally **after** Phase E — see below.)*
 
@@ -61,6 +61,7 @@ Structured **listening context** (driving vs desk, group session vs solo, who wa
 
 - **Car / crew** — democratic blending, shared libraries / taste, in-car and join flows that match the narrative (builds on group session + earlier phases).
 - **Room / party** — richer live session: voting depth, requests, host controls (e.g. veto) where the product calls for it.
+- **Public / follow-along lobby (sync listen)** — optional mode where the **group queue and lobby stay shared**, but playback is **per listener** (each person’s Spotify in their own ears), so remote crews can “run the same set” without one car speaker. Builds on the same session model; **implementation** lines up with strategic fork **(a)** (Web Playback / device playback APIs, Premium, latency — different from current host-only Connect playback).
 - **Cross-cutting** — align landing, dashboard, and session UX with those modes; same “PeaPod” voice as you iterate.
 
 Treat this phase as **breadth first, depth second**: ship enough to learn, then tighten.

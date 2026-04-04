@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { rateLimit } from "@/lib/rate-limit";
+import {
+  SpotifyNotLinkedError,
+  SpotifyTokenError,
+} from "@/lib/spotify/access-token";
 import { spotifyUserGet } from "@/lib/spotify/user-api";
 
 const SEARCH_WINDOW_MS = 60_000;
@@ -40,11 +44,54 @@ export async function GET(req: Request) {
     limit: "12",
   })}`;
 
-  const res = await spotifyUserGet(session.user.id, url);
+  let res: Response;
+  try {
+    res = await spotifyUserGet(session.user.id, url);
+  } catch (e) {
+    if (e instanceof SpotifyNotLinkedError) {
+      return NextResponse.json(
+        {
+          error: "Spotify isn’t linked. Connect it under Music services.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 503 },
+      );
+    }
+    if (e instanceof SpotifyTokenError) {
+      if (
+        typeof e.message === "string" &&
+        e.message.includes("not configured")
+      ) {
+        return NextResponse.json(
+          { error: "Search is temporarily unavailable." },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json(
+        {
+          error:
+            "Spotify access needs a refresh. Open Music services and tap Reconnect.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 503 },
+      );
+    }
+    throw e;
+  }
+
   if (!res.ok) {
     const t = await res.text();
     console.error("[spotify/search]", res.status, t.slice(0, 300));
-    return NextResponse.json({ error: "Spotify search failed" }, { status: 502 });
+    const authish = res.status === 401 || res.status === 403;
+    return NextResponse.json(
+      {
+        error: authish
+          ? "Spotify rejected this request. Reconnect under Music services."
+          : "Spotify search failed.",
+        needsSpotifyReconnect: authish,
+      },
+      { status: 502 },
+    );
   }
 
   const json = (await res.json()) as {

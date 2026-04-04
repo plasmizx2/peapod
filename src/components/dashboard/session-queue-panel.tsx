@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   ChevronDown,
@@ -9,6 +10,7 @@ import {
   Loader2,
   Play,
   Plus,
+  Settings2,
   SkipForward,
   ThumbsDown,
   ThumbsUp,
@@ -51,6 +53,8 @@ export function SessionQueuePanel({
   driverRejectVoteThreshold,
   onRefresh,
   onPatchSession,
+  /** `queue` — add music & votes. `host` — mode, driving log, device (host only). */
+  panel,
 }: {
   sessionId: string;
   sessionActive: boolean;
@@ -74,12 +78,14 @@ export function SessionQueuePanel({
     driverRejectPlaylistId?: string | null;
     driverRejectVoteThreshold?: number;
   }) => Promise<boolean>;
+  panel: "queue" | "host";
 }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchReconnectHint, setSearchReconnectHint] = useState(false);
   const [playbackBusy, setPlaybackBusy] = useState<string | null>(null);
   const [voteBusy, setVoteBusy] = useState<string | null>(null);
   const [reorderBusy, setReorderBusy] = useState(false);
@@ -98,16 +104,25 @@ export function SessionQueuePanel({
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [transferBusy, setTransferBusy] = useState(false);
+  const [spotifyMe, setSpotifyMe] = useState<{
+    id: string;
+    displayName: string | null;
+  } | null>(null);
+
+  const spotifyAccountLabel =
+    spotifyMe?.displayName?.trim() || spotifyMe?.id || null;
 
   const runSearch = useCallback(async (query: string) => {
     const t = query.trim();
     if (t.length < 2) {
       setHits([]);
       setSearchError(null);
+      setSearchReconnectHint(false);
       return;
     }
     setSearching(true);
     setSearchError(null);
+    setSearchReconnectHint(false);
     try {
       const res = await fetch(
         `/api/spotify/search?${new URLSearchParams({ q: t })}`,
@@ -116,15 +131,18 @@ export function SessionQueuePanel({
         ok?: boolean;
         tracks?: SearchHit[];
         error?: string;
+        needsSpotifyReconnect?: boolean;
       };
       if (!res.ok) {
         setHits([]);
         setSearchError(data.error ?? "Search failed");
+        setSearchReconnectHint(Boolean(data.needsSpotifyReconnect));
         return;
       }
       setHits(data.tracks ?? []);
     } catch {
       setSearchError("Network error");
+      setSearchReconnectHint(false);
       setHits([]);
     } finally {
       setSearching(false);
@@ -190,6 +208,31 @@ export function SessionQueuePanel({
     }
     void loadSpotifyDevices();
   }, [isHost, sessionActive, sessionId, loadSpotifyDevices]);
+
+  useEffect(() => {
+    if (!sessionActive) {
+      setSpotifyMe(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/spotify/me");
+      const data = (await res.json()) as {
+        ok?: boolean;
+        spotifyUser?: { id: string; displayName: string | null };
+        error?: string;
+      };
+      if (cancelled) return;
+      if (res.ok && data.spotifyUser) {
+        setSpotifyMe(data.spotifyUser);
+      } else {
+        setSpotifyMe(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionActive]);
 
   useEffect(() => {
     if (!isHost || !sessionActive) {
@@ -569,19 +612,68 @@ export function SessionQueuePanel({
 
   const unplayedCount = queue.filter((x) => !x.playedAt).length;
 
-  return (
-    <div className="mt-8 border-t border-forest/10 pt-6">
-      <div className="mb-4 flex items-center gap-2">
-        <ListMusic className="h-5 w-5 text-[#1DB954]" aria-hidden />
-        <h3 className="text-lg font-semibold text-forest-dark">Queue</h3>
-      </div>
-      <p className="mb-4 text-sm text-moss">
-        Playback uses the <strong className="font-medium text-forest-dark">host&apos;s</strong>{" "}
-        Spotify on their active device. Everyone can add songs or merge a playlist;
-        the host can save songs that play to a Spotify playlist (driving log).
-      </p>
+  const isQueuePanel = panel === "queue";
+  const isHostPanel = panel === "host";
 
-      {isHost && sessionActive ? (
+  if (isHostPanel && !isHost) {
+    return (
+      <p className="text-sm text-moss">
+        Only the host can change queue mode, driving log, and playback device.
+      </p>
+    );
+  }
+
+  const showHostSettings = isHostPanel && isHost && sessionActive;
+  const showMerge = isQueuePanel && sessionActive;
+  const showDevices = isHostPanel && isHost && sessionActive;
+  const showPlayback = isQueuePanel && sessionActive && isHost;
+  const showSearchAndList = isQueuePanel;
+
+  return (
+    <div
+      className={
+        isQueuePanel || isHostPanel
+          ? "space-y-4"
+          : "mt-8 border-t border-forest/10 pt-6"
+      }
+    >
+      {isQueuePanel ? (
+        <>
+          <div className="flex items-center gap-2">
+            <ListMusic className="h-5 w-5 text-[#1DB954]" aria-hidden />
+            <h3 className="text-lg font-semibold text-forest-dark">Queue</h3>
+          </div>
+          <p className="text-sm text-moss">
+            Search or import tracks, vote on the list.{" "}
+            {isHost ? (
+              <>
+                You start playback on <strong className="font-medium text-forest-dark">your</strong>{" "}
+                Spotify (pick the speaker in the Host tab).
+              </>
+            ) : (
+              <>
+                The <strong className="font-medium text-forest-dark">host</strong> starts music on
+                their device — you help build the list.
+              </>
+            )}
+          </p>
+        </>
+      ) : null}
+
+      {isHostPanel ? (
+        <>
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-sage" aria-hidden />
+            <h3 className="text-lg font-semibold text-forest-dark">Host</h3>
+          </div>
+          <p className="text-sm text-moss">
+            How the queue behaves, saving played songs to Spotify, and which device
+            plays audio.
+          </p>
+        </>
+      ) : null}
+
+      {showHostSettings ? (
         <div className="mb-4 space-y-3 rounded-xl border border-forest/10 bg-white/60 p-3 text-sm">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-moss">Mode</span>
@@ -631,6 +723,15 @@ export function SessionQueuePanel({
             <p className="mb-2 text-xs font-medium text-forest-dark">
               Driving log (Spotify)
             </p>
+            {spotifyAccountLabel ? (
+              <p className="mb-2 text-xs text-moss">
+                From{" "}
+                <strong className="font-medium text-forest-dark">
+                  {spotifyAccountLabel}
+                </strong>
+                ’s Spotify library (linked in PeaPod).
+              </p>
+            ) : null}
             <p className="mb-2 text-xs text-moss">
               {driverSaveMode === "vote_threshold"
                 ? "Saves to your playlist when net votes reach the threshold below (not from Play next / Play all)."
@@ -766,14 +867,26 @@ export function SessionQueuePanel({
         </div>
       ) : null}
 
-      {sessionActive ? (
+      {showMerge ? (
         <div className="mb-4 rounded-xl border border-forest/10 bg-white/50 p-3 text-sm">
           <div className="mb-2 flex items-center gap-2 text-forest-dark">
             <ListPlus className="h-4 w-4 text-[#1DB954]" aria-hidden />
             <span className="font-medium">Merge a Spotify playlist</span>
           </div>
           <p className="mb-2 text-xs text-moss">
-            Paste a playlist link or ID — up to 200 tracks (your Spotify access).
+            Paste a playlist link or ID — up to 200 tracks.
+            {spotifyAccountLabel ? (
+              <>
+                {" "}
+                Import uses{" "}
+                <strong className="font-medium text-forest-dark">
+                  {spotifyAccountLabel}
+                </strong>
+                ’s Spotify (signed in here).
+              </>
+            ) : (
+              <> Uses your Spotify access from Music services.</>
+            )}{" "}
             Songs already in the <strong className="font-medium text-forest-dark">unplayed</strong>{" "}
             queue are skipped. Long lists may take a few seconds.
           </p>
@@ -822,7 +935,7 @@ export function SessionQueuePanel({
         </div>
       ) : null}
 
-      {isHost && sessionActive ? (
+      {showDevices ? (
         <div className="mb-4 rounded-xl border border-forest/10 bg-white/50 p-3 text-sm">
           <p className="text-xs font-medium text-forest-dark">
             Spotify device (host)
@@ -872,7 +985,7 @@ export function SessionQueuePanel({
         </div>
       ) : null}
 
-      {sessionActive ? (
+      {showPlayback ? (
         <div className="mb-4 flex flex-wrap gap-2">
           <button
             type="button"
@@ -903,8 +1016,17 @@ export function SessionQueuePanel({
         </div>
       ) : null}
 
-      {sessionActive ? (
+      {showSearchAndList && sessionActive ? (
         <>
+          {spotifyAccountLabel ? (
+            <p className="mb-2 text-xs text-moss">
+              Search uses{" "}
+              <strong className="font-medium text-forest-dark">
+                {spotifyAccountLabel}
+              </strong>
+              ’s Spotify (signed in here).
+            </p>
+          ) : null}
           <label className="sr-only" htmlFor="queue-search">
             Search tracks
           </label>
@@ -920,9 +1042,20 @@ export function SessionQueuePanel({
             <p className="mb-2 text-xs text-moss">Searching…</p>
           ) : null}
           {searchError ? (
-            <p className="mb-2 text-sm text-rust" role="alert">
-              {searchError}
-            </p>
+            <div className="mb-2 text-sm text-rust" role="alert">
+              <p>{searchError}</p>
+              {searchReconnectHint ? (
+                <p className="mt-2 text-forest-dark">
+                  <Link
+                    href="/dashboard/accounts"
+                    className="font-medium text-sage underline decoration-sage/40 underline-offset-2 hover:text-forest-dark"
+                  >
+                    Music services
+                  </Link>{" "}
+                  — reconnect Spotify, then try search again.
+                </p>
+              ) : null}
+            </div>
           ) : null}
           {hits.length > 0 ? (
             <ul className="mb-6 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-forest/10 bg-white/60 p-2">
@@ -956,117 +1089,119 @@ export function SessionQueuePanel({
             </ul>
           ) : null}
         </>
-      ) : (
+      ) : showSearchAndList ? (
         <p className="mb-4 text-sm text-moss">
           Session ended — queue is read-only below.
         </p>
-      )}
+      ) : null}
 
-      {queue.length === 0 ? (
-        <p className="text-sm text-moss">No songs in the queue yet.</p>
-      ) : (
-        <ol className="list-decimal space-y-3 pl-5 text-sm text-forest-dark">
-          {queue.map((item, index) => (
-            <li
-              key={item.id}
-              className={`pl-1 ${item.playedAt ? "opacity-60" : ""}`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <span className="font-medium">{item.trackName}</span>
-                  <span className="text-moss"> — {item.artistName}</span>
-                  <span className="block text-xs text-moss">
-                    Added by {item.addedByDisplayName}
-                    {item.playedAt ? " · Played" : null}
-                  </span>
-                  {item.score != null && queueMode !== "manual" ? (
-                    <span className="text-xs text-moss">
-                      Score {item.score.toFixed(1)} · votes {item.voteTotal}
+      {showSearchAndList ? (
+        queue.length === 0 ? (
+          <p className="text-sm text-moss">No songs in the queue yet.</p>
+        ) : (
+          <ol className="list-decimal space-y-3 pl-5 text-sm text-forest-dark">
+            {queue.map((item, index) => (
+              <li
+                key={item.id}
+                className={`pl-1 ${item.playedAt ? "opacity-60" : ""}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <span className="font-medium">{item.trackName}</span>
+                    <span className="text-moss"> — {item.artistName}</span>
+                    <span className="block text-xs text-moss">
+                      Added by {item.addedByDisplayName}
+                      {item.playedAt ? " · Played" : null}
                     </span>
-                  ) : (
-                    <span className="text-xs text-moss">
-                      Votes {item.voteTotal}
-                    </span>
-                  )}
+                    {item.score != null && queueMode !== "manual" ? (
+                      <span className="text-xs text-moss">
+                        Score {item.score.toFixed(1)} · votes {item.voteTotal}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-moss">
+                        Votes {item.voteTotal}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {sessionActive ? (
+                      <>
+                        <button
+                          type="button"
+                          title="Upvote"
+                          disabled={voteBusy === item.id}
+                          onClick={() =>
+                            void vote(
+                              item.id,
+                              item.myVote === 1 ? 0 : 1,
+                            )
+                          }
+                          className={`rounded p-1 ${
+                            item.myVote === 1
+                              ? "bg-sage/40 text-forest-dark"
+                              : "text-moss hover:bg-sage/20"
+                          }`}
+                        >
+                          <ThumbsUp className="h-4 w-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          title="Downvote"
+                          disabled={voteBusy === item.id}
+                          onClick={() =>
+                            void vote(
+                              item.id,
+                              item.myVote === -1 ? 0 : -1,
+                            )
+                          }
+                          className={`rounded p-1 ${
+                            item.myVote === -1
+                              ? "bg-rust/25 text-forest-dark"
+                              : "text-moss hover:bg-rust/15"
+                          }`}
+                        >
+                          <ThumbsDown className="h-4 w-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          title="Remove"
+                          disabled={voteBusy === item.id}
+                          onClick={() => void removeItem(item.id)}
+                          className="rounded p-1 text-moss hover:bg-rust/15 hover:text-rust"
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden />
+                        </button>
+                      </>
+                    ) : null}
+                    {isHost && sessionActive ? (
+                      <>
+                        <button
+                          type="button"
+                          title="Move up"
+                          disabled={reorderBusy || index === 0}
+                          onClick={() => moveItem(index, -1)}
+                          className="rounded p-1 text-moss hover:bg-sage/20 disabled:opacity-30"
+                        >
+                          <ChevronUp className="h-4 w-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          title="Move down"
+                          disabled={reorderBusy || index >= queue.length - 1}
+                          onClick={() => moveItem(index, 1)}
+                          className="rounded p-1 text-moss hover:bg-sage/20 disabled:opacity-30"
+                        >
+                          <ChevronDown className="h-4 w-4" aria-hidden />
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-1">
-                  {sessionActive ? (
-                    <>
-                      <button
-                        type="button"
-                        title="Upvote"
-                        disabled={voteBusy === item.id}
-                        onClick={() =>
-                          void vote(
-                            item.id,
-                            item.myVote === 1 ? 0 : 1,
-                          )
-                        }
-                        className={`rounded p-1 ${
-                          item.myVote === 1
-                            ? "bg-sage/40 text-forest-dark"
-                            : "text-moss hover:bg-sage/20"
-                        }`}
-                      >
-                        <ThumbsUp className="h-4 w-4" aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        title="Downvote"
-                        disabled={voteBusy === item.id}
-                        onClick={() =>
-                          void vote(
-                            item.id,
-                            item.myVote === -1 ? 0 : -1,
-                          )
-                        }
-                        className={`rounded p-1 ${
-                          item.myVote === -1
-                            ? "bg-rust/25 text-forest-dark"
-                            : "text-moss hover:bg-rust/15"
-                        }`}
-                      >
-                        <ThumbsDown className="h-4 w-4" aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        title="Remove"
-                        disabled={voteBusy === item.id}
-                        onClick={() => void removeItem(item.id)}
-                        className="rounded p-1 text-moss hover:bg-rust/15 hover:text-rust"
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                      </button>
-                    </>
-                  ) : null}
-                  {isHost && sessionActive ? (
-                    <>
-                      <button
-                        type="button"
-                        title="Move up"
-                        disabled={reorderBusy || index === 0}
-                        onClick={() => moveItem(index, -1)}
-                        className="rounded p-1 text-moss hover:bg-sage/20 disabled:opacity-30"
-                      >
-                        <ChevronUp className="h-4 w-4" aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        title="Move down"
-                        disabled={reorderBusy || index >= queue.length - 1}
-                        onClick={() => moveItem(index, 1)}
-                        className="rounded p-1 text-moss hover:bg-sage/20 disabled:opacity-30"
-                      >
-                        <ChevronDown className="h-4 w-4" aria-hidden />
-                      </button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+              </li>
+            ))}
+          </ol>
+        )
+      ) : null}
     </div>
   );
 }
