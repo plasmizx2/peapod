@@ -128,8 +128,9 @@ export default async function LinkedAccountsPage({
                   </p>
                   <SpotifySyncButton />
                   <p className="text-xs text-moss">
-                    Walks Spotify history with pagination (up to ~1,250 plays per
-                    run). Rows you already have are skipped.
+                    We also run this once automatically after each sign-in (when
+                    Spotify is linked). Manual sync walks history with pagination
+                    (up to ~1,250 plays per run); duplicates are skipped.
                   </p>
                 </div>
               ) : null}

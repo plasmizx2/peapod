@@ -81,7 +81,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         if (
           account?.provider === "google" ||
@@ -100,6 +100,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         } else {
           token.sub = user.id;
         }
+        token.triggerSpotifySync = true;
+      }
+      if (
+        trigger === "update" &&
+        session &&
+        typeof session === "object" &&
+        "clearSpotifySyncTrigger" in session &&
+        (session as { clearSpotifySyncTrigger?: boolean }).clearSpotifySyncTrigger
+      ) {
+        token.triggerSpotifySync = false;
       }
       return token;
     },
@@ -107,6 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.sub) {
         session.user.id = token.sub;
       }
+      session.triggerSpotifySync = Boolean(token.triggerSpotifySync);
       return session;
     },
   },

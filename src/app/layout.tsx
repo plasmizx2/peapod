@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { auth } from "@/auth";
+import { PostLoginSpotifySync } from "@/components/post-login-spotify-sync";
 import { AuthSessionProvider } from "@/components/session-provider";
 import "./globals.css";
 
@@ -38,6 +39,7 @@ export default async function RootLayout({
     >
       <body className="relative flex min-h-full flex-col antialiased">
         <AuthSessionProvider session={session}>
+          <PostLoginSpotifySync />
           {children}
         </AuthSessionProvider>
       </body>

@@ -8,5 +8,13 @@ declare module "next-auth" {
       name?: string | null;
       image?: string | null;
     };
+    /** True right after sign-in; client runs one Spotify sync then clears via `update()`. */
+    triggerSpotifySync?: boolean;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    triggerSpotifySync?: boolean;
   }
 }
