@@ -1,10 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { Clock, Mic2, Music, ArrowRight, Sparkles, Zap, TrendingUp } from "lucide-react";
+import {
+  BarChart3,
+  Clock,
+  Mic2,
+  Music,
+  ArrowRight,
+  Sparkles,
+  Zap,
+  TrendingUp,
+} from "lucide-react";
 import { motion, useMotionValue, useTransform } from "motion/react";
 import { useState } from "react";
-import type { RecentPlay, TopArtist, TopTrack } from "@/types/listening";
+import { SoloPresetPlaylists } from "@/components/dashboard/solo-preset-playlists";
+import type {
+  RecentPlay,
+  TimePatterns,
+  TopArtist,
+  TopTrack,
+} from "@/types/listening";
+
+function formatHourUtcLabel(h: number) {
+  return `${h.toString().padStart(2, "0")}:00 UTC`;
+}
 
 function formatPlayedAt(iso: string) {
   try {
@@ -23,12 +42,16 @@ export function FigmaDashboardHome({
   recentPlays,
   topTracks,
   topArtists,
+  timePatterns,
+  vibeLine,
 }: {
   firstName: string;
   listeningCount: number;
   recentPlays: RecentPlay[];
   topTracks: TopTrack[];
   topArtists: TopArtist[];
+  timePatterns: TimePatterns | null;
+  vibeLine: string | null;
 }) {
   const [isHovering, setIsHovering] = useState(false);
   const x = useMotionValue(0);
@@ -84,6 +107,9 @@ export function FigmaDashboardHome({
             ? `${listeningCount.toLocaleString()} plays on file — sync again anytime under Music services.`
             : "Connect Spotify under Music services, then sync recent plays to get started."}
         </p>
+        {listeningCount > 0 && vibeLine ? (
+          <p className="mt-3 text-sm text-sage sm:text-base">{vibeLine}</p>
+        ) : null}
       </motion.div>
 
       {listeningCount > 0 ? (
@@ -126,6 +152,103 @@ export function FigmaDashboardHome({
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+
+          {timePatterns ? (
+            <div className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8">
+              <div className="mb-2 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-sage" aria-hidden />
+                <h3 className="text-lg font-semibold text-forest-dark">
+                  When you listen
+                </h3>
+              </div>
+              <p className="mb-4 text-xs text-moss">
+                Based on stored play times in UTC (not your local timezone).
+              </p>
+              {timePatterns.peakHourUtc !== null ||
+              timePatterns.peakWeekdayDow !== null ? (
+                <p className="mb-4 text-sm text-forest-dark">
+                  {timePatterns.peakHourUtc !== null ? (
+                    <>
+                      Peaks around{" "}
+                      <span className="font-medium">
+                        {formatHourUtcLabel(timePatterns.peakHourUtc)}
+                      </span>
+                    </>
+                  ) : null}
+                  {timePatterns.peakHourUtc !== null &&
+                  timePatterns.peakWeekdayDow !== null
+                    ? " · "
+                    : null}
+                  {timePatterns.peakWeekdayDow !== null ? (
+                    <>
+                      Most plays on{" "}
+                      <span className="font-medium">
+                        {
+                          timePatterns.weekdayUtc[timePatterns.peakWeekdayDow]
+                            ?.label
+                        }
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+              ) : (
+                <p className="mb-4 text-sm text-moss">
+                  Add more plays to see time-of-day and weekday patterns.
+                </p>
+              )}
+              <div className="mb-6 flex h-24 items-end gap-px sm:gap-0.5">
+                {timePatterns.hourlyUtc.map((n, h) => {
+                  const max = Math.max(...timePatterns.hourlyUtc, 1);
+                  const pct = max > 0 ? (n / max) * 100 : 0;
+                  return (
+                    <div
+                      key={h}
+                      className="flex min-w-0 flex-1 flex-col items-center gap-1"
+                      title={`${formatHourUtcLabel(h)}: ${n} plays`}
+                    >
+                      <div
+                        className="w-full min-w-[2px] rounded-t bg-sage/80"
+                        style={{ height: `${Math.max(pct, n > 0 ? 8 : 0)}%` }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between text-[10px] text-moss sm:text-xs">
+                <span>00 UTC</span>
+                <span>12 UTC</span>
+                <span>23 UTC</span>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {timePatterns.weekdayUtc.map((w) => {
+                  const max = Math.max(
+                    ...timePatterns.weekdayUtc.map((x) => x.count),
+                    1,
+                  );
+                  const pct = max > 0 ? (w.count / max) * 100 : 0;
+                  return (
+                    <div
+                      key={w.dow}
+                      className="flex min-w-[2.5rem] flex-1 flex-col items-center gap-1"
+                    >
+                      <div className="flex h-12 w-full items-end justify-center rounded-md bg-mint/20 px-1">
+                        <div
+                          className="w-full max-w-[1.25rem] rounded-t bg-sage/90"
+                          style={{
+                            height: `${Math.max(pct, w.count > 0 ? 12 : 0)}%`,
+                          }}
+                          title={`${w.label}: ${w.count} plays`}
+                        />
+                      </div>
+                      <span className="text-[10px] font-medium text-moss">
+                        {w.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ) : null}
 
@@ -177,6 +300,8 @@ export function FigmaDashboardHome({
               </div>
             ) : null}
           </div>
+
+          <SoloPresetPlaylists />
 
           <p className="text-center text-sm text-moss">
             <Link

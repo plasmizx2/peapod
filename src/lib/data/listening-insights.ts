@@ -1,6 +1,12 @@
 import { count, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { artists, listeningEvents, tracks } from "@/db/schema";
+import {
+  artists,
+  listeningEvents,
+  tracks,
+  userArtistStats,
+  userTrackStats,
+} from "@/db/schema";
 import type { RecentPlay, TopArtist, TopTrack } from "@/types/listening";
 
 export type { RecentPlay, TopArtist, TopTrack } from "@/types/listening";
@@ -35,6 +41,27 @@ export async function getTopTracks(
   userId: string,
   limit: number,
 ): Promise<TopTrack[]> {
+  const fromStats = await db
+    .select({
+      trackName: tracks.name,
+      artistName: artists.name,
+      plays: userTrackStats.playCount,
+    })
+    .from(userTrackStats)
+    .innerJoin(tracks, eq(userTrackStats.trackId, tracks.id))
+    .innerJoin(artists, eq(tracks.primaryArtistId, artists.id))
+    .where(eq(userTrackStats.userId, userId))
+    .orderBy(desc(userTrackStats.playCount))
+    .limit(limit);
+
+  if (fromStats.length > 0) {
+    return fromStats.map((r) => ({
+      trackName: r.trackName,
+      artistName: r.artistName,
+      plays: r.plays,
+    }));
+  }
+
   const rows = await db
     .select({
       trackName: tracks.name,
@@ -60,6 +87,24 @@ export async function getTopArtists(
   userId: string,
   limit: number,
 ): Promise<TopArtist[]> {
+  const fromStats = await db
+    .select({
+      artistName: artists.name,
+      plays: userArtistStats.playCount,
+    })
+    .from(userArtistStats)
+    .innerJoin(artists, eq(userArtistStats.artistId, artists.id))
+    .where(eq(userArtistStats.userId, userId))
+    .orderBy(desc(userArtistStats.playCount))
+    .limit(limit);
+
+  if (fromStats.length > 0) {
+    return fromStats.map((r) => ({
+      artistName: r.artistName,
+      plays: r.plays,
+    }));
+  }
+
   const rows = await db
     .select({
       artistName: artists.name,

@@ -7,3 +7,17 @@ export type GeneratedPlaylistSummary = {
   source_type: PlaylistSourceType;
   created_at: string;
 };
+
+export type GeneratedPlaylistTrackClient = {
+  position: number;
+  trackName: string;
+  artistName: string;
+  score: number;
+};
+
+export type GeneratePlaylistResponse = {
+  ok: true;
+  playlistId: string;
+  title: string;
+  tracks: GeneratedPlaylistTrackClient[];
+};

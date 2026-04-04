@@ -4,9 +4,64 @@ import {
   artists,
   listeningEvents,
   providerAccounts,
+  syncJobs,
   tracks,
 } from "@/db/schema";
+import { rebuildUserListeningStats } from "@/lib/data/rebuild-user-stats";
 import { getSpotifyAccessToken } from "./access-token";
+
+const MAX_429_ATTEMPTS = 8;
+
+function parseRetryAfterSeconds(res: Response): number | null {
+  const raw = res.headers.get("Retry-After");
+  if (!raw) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * Fetches one recently-played page, refreshing OAuth on 401 and backing off on 429
+ * (Retry-After when present).
+ */
+async function fetchRecentlyPlayedPage(
+  userId: string,
+  url: string,
+  state: { accessToken: string; providerAccountId: string },
+): Promise<Response> {
+  let attempt429 = 0;
+
+  for (;;) {
+    let res = await fetch(url, {
+      headers: { Authorization: `Bearer ${state.accessToken}` },
+    });
+
+    if (res.status === 401) {
+      const t = await getSpotifyAccessToken(userId, { forceRefresh: true });
+      state.accessToken = t.accessToken;
+      state.providerAccountId = t.providerAccountId;
+      res = await fetch(url, {
+        headers: { Authorization: `Bearer ${state.accessToken}` },
+      });
+    }
+
+    if (res.status === 429) {
+      attempt429 += 1;
+      if (attempt429 > MAX_429_ATTEMPTS) {
+        return res;
+      }
+      const sec =
+        parseRetryAfterSeconds(res) ?? Math.min(120, 2 ** attempt429);
+      await sleep(sec * 1000);
+      continue;
+    }
+
+    return res;
+  }
+}
 
 type SpotifyArtist = { id: string; name: string };
 type SpotifyTrack = {
@@ -118,55 +173,109 @@ export async function syncRecentlyPlayed(userId: string): Promise<{
   imported: number;
   skipped: number;
   pagesFetched: number;
+  syncJobId: string;
 }> {
-  let { accessToken, providerAccountId } = await getSpotifyAccessToken(userId);
+  const tokenState = await getSpotifyAccessToken(userId);
+
+  const [job] = await db
+    .insert(syncJobs)
+    .values({
+      userId,
+      status: "running",
+      kind: "spotify_recently_played",
+    })
+    .returning({ id: syncJobs.id });
+
+  if (!job) {
+    throw new Error("Could not create sync job");
+  }
 
   let imported = 0;
   let skipped = 0;
   let pagesFetched = 0;
   let nextUrl: string | null = RECENTLY_PLAYED_FIRST;
 
-  for (let page = 0; page < MAX_PAGES && nextUrl; page++) {
-    let res = await fetch(nextUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+  const finishJob = async (opts: {
+    status: "ok" | "error";
+    errorMessage?: string;
+  }) => {
+    await db
+      .update(syncJobs)
+      .set({
+        status: opts.status,
+        imported,
+        skipped,
+        pagesFetched,
+        errorMessage: opts.errorMessage ?? null,
+        finishedAt: new Date(),
+      })
+      .where(eq(syncJobs.id, job.id));
+  };
+
+  try {
+    for (let page = 0; page < MAX_PAGES && nextUrl; page++) {
+      const res = await fetchRecentlyPlayedPage(
+        userId,
+        nextUrl,
+        tokenState,
+      );
+
+      if (!res.ok) {
+        const t = await res.text();
+        console.error(
+          "[spotify] recently-played failed",
+          res.status,
+          t.slice(0, 500),
+        );
+        const msg =
+          res.status === 429
+            ? "Spotify rate limit (429); try again later"
+            : `Spotify recently-played failed: ${res.status}`;
+        throw new Error(msg);
+      }
+
+      const body = (await res.json()) as RecentlyPlayedResponse;
+      const items = body.items ?? [];
+
+      if (items.length === 0) {
+        break;
+      }
+
+      for (const item of items) {
+        const r = await ingestItem(userId, tokenState.providerAccountId, item);
+        if (r === "imported") imported++;
+        else skipped++;
+      }
+
+      pagesFetched++;
+      nextUrl = body.next ?? null;
+    }
+
+    await db
+      .update(providerAccounts)
+      .set({ lastSyncedAt: new Date(), updatedAt: new Date() })
+      .where(eq(providerAccounts.id, tokenState.providerAccountId));
+
+    await finishJob({ status: "ok" });
+
+    try {
+      await rebuildUserListeningStats(userId);
+    } catch (e) {
+      console.error("[stats] rebuild after sync failed", e);
+    }
+
+    return {
+      imported,
+      skipped,
+      pagesFetched,
+      syncJobId: job.id,
+    };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await finishJob({
+      status: "error",
+      errorMessage: message.slice(0, 2000),
     });
-
-    if (res.status === 401) {
-      ({ accessToken, providerAccountId } = await getSpotifyAccessToken(userId, {
-        forceRefresh: true,
-      }));
-      res = await fetch(nextUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-    }
-
-    if (!res.ok) {
-      const t = await res.text();
-      console.error("[spotify] recently-played failed", res.status, t.slice(0, 500));
-      throw new Error(`Spotify recently-played failed: ${res.status}`);
-    }
-
-    const body = (await res.json()) as RecentlyPlayedResponse;
-    const items = body.items ?? [];
-
-    if (items.length === 0) {
-      break;
-    }
-
-    for (const item of items) {
-      const r = await ingestItem(userId, providerAccountId, item);
-      if (r === "imported") imported++;
-      else skipped++;
-    }
-
-    pagesFetched++;
-    nextUrl = body.next ?? null;
+    throw e;
   }
-
-  await db
-    .update(providerAccounts)
-    .set({ lastSyncedAt: new Date(), updatedAt: new Date() })
-    .where(eq(providerAccounts.id, providerAccountId));
-
-  return { imported, skipped, pagesFetched };
 }
