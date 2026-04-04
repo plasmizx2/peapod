@@ -6,22 +6,37 @@ import { db } from "@/db";
 import { providerAccounts } from "@/db/schema";
 import type { ProviderAccountRow } from "@/types/providers";
 
-function spotifyConnectionHelp(code: string): string {
+function spotifyConnectionHelp(
+  code: string,
+  httpStatus?: string | null,
+): string {
   const messages: Record<string, string> = {
     access_denied: "Sign-in cancelled. Try again anytime.",
     invalid_state: "That timed out. Hit Connect Spotify again.",
     missing_code: "Couldn’t finish. Try connecting again.",
     server_config: "Spotify isn’t set up here yet. Check back soon.",
     token_exchange: "Spotify hiccupped. Try again in a moment.",
-    profile_fetch: "Couldn’t load your Spotify profile. Try again.",
+    profile_fetch:
+      "Couldn’t load your Spotify profile from Spotify’s API. If the app is in Development mode, add your Spotify login under Dashboard → your app → User Management. Otherwise wait a few minutes after upgrading Premium, then try Reconnect.",
   };
-  return messages[code] ?? "Couldn’t connect Spotify. Try again.";
+  const base = messages[code] ?? "Couldn’t connect Spotify. Try again.";
+  if (code === "profile_fetch" && httpStatus === "403") {
+    return `${base} (HTTP 403 — often a Development mode / allowed-user issue.)`;
+  }
+  if (code === "profile_fetch" && httpStatus === "401") {
+    return `${base} (HTTP 401 — token rejected; try Reconnect.)`;
+  }
+  return base;
 }
 
 export default async function LinkedAccountsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ spotify?: string; spotify_error?: string }>;
+  searchParams: Promise<{
+    spotify?: string;
+    spotify_error?: string;
+    spotify_http?: string;
+  }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -58,7 +73,10 @@ export default async function LinkedAccountsPage({
       ) : null}
       {params.spotify_error ? (
         <p className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
-          {spotifyConnectionHelp(params.spotify_error)}
+          {spotifyConnectionHelp(
+            params.spotify_error,
+            params.spotify_http ?? null,
+          )}
         </p>
       ) : null}
 

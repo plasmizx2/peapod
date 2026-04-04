@@ -81,6 +81,12 @@ export async function GET(request: Request) {
   });
 
   if (!tokenRes.ok) {
+    const errBody = await tokenRes.text();
+    console.error(
+      "[spotify/callback] token exchange failed",
+      tokenRes.status,
+      errBody.slice(0, 800),
+    );
     accountsUrl.searchParams.set("spotify_error", "token_exchange");
     return NextResponse.redirect(accountsUrl);
   }
@@ -91,7 +97,14 @@ export async function GET(request: Request) {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   });
   if (!meRes.ok) {
+    const errBody = await meRes.text();
+    console.error(
+      "[spotify/callback] GET /v1/me failed",
+      meRes.status,
+      errBody.slice(0, 800),
+    );
     accountsUrl.searchParams.set("spotify_error", "profile_fetch");
+    accountsUrl.searchParams.set("spotify_http", String(meRes.status));
     return NextResponse.redirect(accountsUrl);
   }
 
