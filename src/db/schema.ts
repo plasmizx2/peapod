@@ -268,6 +268,22 @@ export const listeningSessions = pgTable(
     }),
     /** Host Spotify playlist id — played session tracks append here (driving log). */
     driverSavePlaylistId: text("driver_save_playlist_id"),
+    /**
+     * playback — save from Play next / Play all (see play_next_only).
+     * play_next_only — only append when host uses Play next (not Play all).
+     * vote_threshold — append when net votes reach driverSaveVoteThreshold (not from playback).
+     */
+    driverSaveMode: text("driver_save_mode").notNull().default("playback"),
+    /** When driverSaveMode is vote_threshold: save to main log when sum(votes) >= this. */
+    driverSaveVoteThreshold: integer("driver_save_vote_threshold")
+      .notNull()
+      .default(2),
+    /** Optional playlist for “parking lot” / downvoted tracks. */
+    driverRejectPlaylistId: text("driver_reject_playlist_id"),
+    /** Append to reject playlist when net votes <= this (e.g. -2). */
+    driverRejectVoteThreshold: integer("driver_reject_vote_threshold")
+      .notNull()
+      .default(-2),
   },
   (t) => [index("sessions_join_code_idx").on(t.joinCode)],
 );
@@ -310,6 +326,14 @@ export const sessionQueue = pgTable(
     }),
     playedAt: timestamp("played_at", { withTimezone: true }),
     score: doublePrecision("score"),
+    /** Set when this row was appended to the host driving log playlist. */
+    driverPositiveLoggedAt: timestamp("driver_positive_logged_at", {
+      withTimezone: true,
+    }),
+    /** Set when this row was appended to the reject / parking-lot playlist. */
+    driverRejectLoggedAt: timestamp("driver_reject_logged_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [

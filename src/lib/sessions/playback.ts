@@ -81,8 +81,8 @@ export async function playNextFromSessionQueue(
     .where(eq(sessionQueue.id, row.id));
 
   await appendPlayedTracksToDriverSavePlaylist(sessionId, hostUserId, [
-    row.spotifyId,
-  ]);
+    { queueItemId: row.id, spotifyId: row.spotifyId },
+  ], "play_next");
 
   return { ok: true };
 }
@@ -144,7 +144,8 @@ export async function playAllUnplayedFromSessionQueue(
   await appendPlayedTracksToDriverSavePlaylist(
     sessionId,
     hostUserId,
-    rows.map((r) => r.spotifyId),
+    rows.map((r) => ({ queueItemId: r.id, spotifyId: r.spotifyId })),
+    "play_all",
   );
 
   return { ok: true, count: rows.length };

@@ -33,6 +33,10 @@ type LobbyState = {
   queueMode: string;
   driverUserId: string | null;
   driverSavePlaylistId: string | null;
+  driverSaveMode: string;
+  driverSaveVoteThreshold: number;
+  driverRejectPlaylistId: string | null;
+  driverRejectVoteThreshold: number;
   members: Member[];
   queue: QueueItem[];
   nowPlaying: NowPlayingSlim | null;
@@ -69,6 +73,10 @@ export function SessionLobbyPage() {
       queueMode?: string;
       driverUserId?: string | null;
       driverSavePlaylistId?: string | null;
+      driverSaveMode?: string;
+      driverSaveVoteThreshold?: number;
+      driverRejectPlaylistId?: string | null;
+      driverRejectVoteThreshold?: number;
       nowPlaying?: NowPlayingSlim | null;
     };
     if (!res.ok) {
@@ -92,6 +100,10 @@ export function SessionLobbyPage() {
         queueMode: data.queueMode ?? "manual",
         driverUserId: data.driverUserId ?? null,
         driverSavePlaylistId: data.driverSavePlaylistId ?? null,
+        driverSaveMode: data.driverSaveMode ?? "playback",
+        driverSaveVoteThreshold: data.driverSaveVoteThreshold ?? 2,
+        driverRejectPlaylistId: data.driverRejectPlaylistId ?? null,
+        driverRejectVoteThreshold: data.driverRejectVoteThreshold ?? -2,
         queue: data.queue ?? [],
         nowPlaying: data.nowPlaying ?? null,
       });
@@ -115,6 +127,10 @@ export function SessionLobbyPage() {
       queueMode?: string;
       driverUserId?: string | null;
       driverSavePlaylistId?: string | null;
+      driverSaveMode?: string;
+      driverSaveVoteThreshold?: number;
+      driverRejectPlaylistId?: string | null;
+      driverRejectVoteThreshold?: number;
     }) => {
       if (!activeId) return false;
       const res = await fetch(`/api/sessions/${activeId}`, {
@@ -156,6 +172,10 @@ export function SessionLobbyPage() {
                 queueMode?: string;
                 driverUserId?: string | null;
                 driverSavePlaylistId?: string | null;
+                driverSaveMode?: string;
+                driverSaveVoteThreshold?: number;
+                driverRejectPlaylistId?: string | null;
+                driverRejectVoteThreshold?: number;
                 nowPlaying?: NowPlayingSlim | null;
               };
           if (data.type === "gone") {
@@ -174,6 +194,10 @@ export function SessionLobbyPage() {
               queueMode: data.queueMode ?? "manual",
               driverUserId: data.driverUserId ?? null,
               driverSavePlaylistId: data.driverSavePlaylistId ?? null,
+              driverSaveMode: data.driverSaveMode ?? "playback",
+              driverSaveVoteThreshold: data.driverSaveVoteThreshold ?? 2,
+              driverRejectPlaylistId: data.driverRejectPlaylistId ?? null,
+              driverRejectVoteThreshold: data.driverRejectVoteThreshold ?? -2,
               queue: data.queue ?? [],
               nowPlaying: data.nowPlaying ?? null,
             });
@@ -509,6 +533,10 @@ export function SessionLobbyPage() {
               }))}
               driverUserId={lobby.driverUserId}
               driverSavePlaylistId={lobby.driverSavePlaylistId}
+              driverSaveMode={lobby.driverSaveMode}
+              driverSaveVoteThreshold={lobby.driverSaveVoteThreshold}
+              driverRejectPlaylistId={lobby.driverRejectPlaylistId}
+              driverRejectVoteThreshold={lobby.driverRejectVoteThreshold}
               onRefresh={() => void fetchLobby(activeId)}
               onPatchSession={patchSession}
             />

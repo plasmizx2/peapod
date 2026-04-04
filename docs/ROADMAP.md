@@ -33,8 +33,14 @@ Status: **implemented** — `/join/[code]`, host device picker + optional transf
 11. **Solo mode parity** — align dashboard stats, presets, and group session story (same “PeaPod” voice). *(Status: **done** — Home explains solo vs group session, links both ways; presets copy tied to stats; stale “coming soon” card replaced with Group session.)*
 12. **Car / crew narrative** — one landing section or onboarding that explains: host device, same room vs remote limits. *(Status: **done** — marketing section “Car & crew — how group session works”; Car/crew card set to Beta + honest copy; group session page `<details>` explainer.)*
 13. **Playlist import v2** — dedupe against queue, optional “interleave” members’ playlists, show import progress for large lists. *(Status: **done** — skip tracks already in unplayed queue + in-playlist dupes; optional interleave with unplayed rows; API returns scanned/skipped counts; UI feedback + “Importing…” for long imports.)*
-14. **Driving log v2** — toggle “only save on play next” vs “save on vote threshold”; optional second playlist for “parking lot” rejects (later).
+14. **Driving log v2** — toggle “only save on play next” vs “save on vote threshold”; optional second playlist for “parking lot” rejects (later). *(Status: **done** — `driverSaveMode`: playback / play_next_only / vote_threshold; vote & reject thresholds; optional reject playlist; per–queue-item log flags to avoid duplicate Spotify appends.)*
 15. **Analytics (privacy-safe)** — aggregate session counts, drop-off, feature usage; no raw listening content in logs.
+
+---
+
+## Phase G — Context & taste signals (later; not in current scope)
+
+Structured **listening context** (driving vs desk, group session vs solo, who was in the room, time of day) as first-class events — to power “what they actually like when…” without complicating shipping driving log v2. Likely pairs with stats/pattern work and **privacy defaults** (opt-in, aggregates only). *Defer until Phase E/F foundations and explicit product decision.*
 
 ---
 

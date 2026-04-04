@@ -98,6 +98,10 @@ export async function getSessionLobbyForUser(
   driverUserId: string | null;
   /** Spotify playlist id on the host account for auto-saving played tracks. */
   driverSavePlaylistId: string | null;
+  driverSaveMode: string;
+  driverSaveVoteThreshold: number;
+  driverRejectPlaylistId: string | null;
+  driverRejectVoteThreshold: number;
   members: {
     userId: string;
     role: string;
@@ -128,6 +132,10 @@ export async function getSessionLobbyForUser(
       queueMode: listeningSessions.queueMode,
       driverUserId: listeningSessions.driverUserId,
       driverSavePlaylistId: listeningSessions.driverSavePlaylistId,
+      driverSaveMode: listeningSessions.driverSaveMode,
+      driverSaveVoteThreshold: listeningSessions.driverSaveVoteThreshold,
+      driverRejectPlaylistId: listeningSessions.driverRejectPlaylistId,
+      driverRejectVoteThreshold: listeningSessions.driverRejectVoteThreshold,
     })
     .from(listeningSessions)
     .where(eq(listeningSessions.id, sessionId))
@@ -157,6 +165,10 @@ export async function getSessionLobbyForUser(
     queueMode: session.queueMode,
     driverUserId: session.driverUserId,
     driverSavePlaylistId: session.driverSavePlaylistId ?? null,
+    driverSaveMode: session.driverSaveMode ?? "playback",
+    driverSaveVoteThreshold: session.driverSaveVoteThreshold ?? 2,
+    driverRejectPlaylistId: session.driverRejectPlaylistId ?? null,
+    driverRejectVoteThreshold: session.driverRejectVoteThreshold ?? -2,
     members: rows.map((r) => ({
       userId: r.userId,
       role: r.role,
@@ -334,6 +346,12 @@ const QUEUE_MODES = new Set([
   "hype",
 ]);
 
+const DRIVER_SAVE_MODES = new Set([
+  "playback",
+  "play_next_only",
+  "vote_threshold",
+]);
+
 export async function updateSessionQueueSettings(
   userId: string,
   sessionId: string,
@@ -341,6 +359,10 @@ export async function updateSessionQueueSettings(
     queueMode?: string;
     driverUserId?: string | null;
     driverSavePlaylistId?: string | null;
+    driverSaveMode?: string;
+    driverSaveVoteThreshold?: number;
+    driverRejectPlaylistId?: string | null;
+    driverRejectVoteThreshold?: number;
   },
 ): Promise<
   | { ok: true }
@@ -351,6 +373,7 @@ export async function updateSessionQueueSettings(
         | "forbidden"
         | "ended"
         | "bad_mode"
+        | "bad_driver_save"
         | "driver_not_member";
     }
 > {
@@ -377,6 +400,27 @@ export async function updateSessionQueueSettings(
     return { ok: false, error: "bad_mode" };
   }
 
+  if (
+    input.driverSaveMode !== undefined &&
+    !DRIVER_SAVE_MODES.has(input.driverSaveMode)
+  ) {
+    return { ok: false, error: "bad_driver_save" };
+  }
+
+  if (input.driverSaveVoteThreshold !== undefined) {
+    const n = Number(input.driverSaveVoteThreshold);
+    if (!Number.isFinite(n) || n < 1 || n > 50) {
+      return { ok: false, error: "bad_driver_save" };
+    }
+  }
+
+  if (input.driverRejectVoteThreshold !== undefined) {
+    const n = Number(input.driverRejectVoteThreshold);
+    if (!Number.isFinite(n) || n > -1 || n < -50) {
+      return { ok: false, error: "bad_driver_save" };
+    }
+  }
+
   if (input.driverUserId !== undefined && input.driverUserId !== null) {
     const [m] = await db
       .select({ userId: sessionMembers.userId })
@@ -397,6 +441,10 @@ export async function updateSessionQueueSettings(
     queueMode?: string;
     driverUserId?: string | null;
     driverSavePlaylistId?: string | null;
+    driverSaveMode?: string;
+    driverSaveVoteThreshold?: number;
+    driverRejectPlaylistId?: string | null;
+    driverRejectVoteThreshold?: number;
   } = {};
   if (input.queueMode !== undefined) {
     patch.queueMode = input.queueMode;
@@ -406,6 +454,26 @@ export async function updateSessionQueueSettings(
   }
   if (input.driverSavePlaylistId !== undefined) {
     patch.driverSavePlaylistId = input.driverSavePlaylistId;
+  }
+  if (input.driverSaveMode !== undefined) {
+    patch.driverSaveMode = input.driverSaveMode;
+  }
+  if (input.driverSaveVoteThreshold !== undefined) {
+    patch.driverSaveVoteThreshold = Math.round(
+      Number(input.driverSaveVoteThreshold),
+    );
+  }
+  if (input.driverRejectPlaylistId !== undefined) {
+    patch.driverRejectPlaylistId =
+      input.driverRejectPlaylistId === null ||
+      input.driverRejectPlaylistId === ""
+        ? null
+        : String(input.driverRejectPlaylistId);
+  }
+  if (input.driverRejectVoteThreshold !== undefined) {
+    patch.driverRejectVoteThreshold = Math.round(
+      Number(input.driverRejectVoteThreshold),
+    );
   }
 
   if (Object.keys(patch).length === 0) {

@@ -27,6 +27,10 @@ export async function PATCH(req: Request, context: RouteContext) {
     queueMode?: string;
     driverUserId?: string | null;
     driverSavePlaylistId?: string | null;
+    driverSaveMode?: string;
+    driverSaveVoteThreshold?: number;
+    driverRejectPlaylistId?: string | null;
+    driverRejectVoteThreshold?: number;
   };
   try {
     body = await req.json();
@@ -48,6 +52,16 @@ export async function PATCH(req: Request, context: RouteContext) {
         : body.driverSavePlaylistId === null || body.driverSavePlaylistId === ""
           ? null
           : String(body.driverSavePlaylistId),
+    driverSaveMode: body.driverSaveMode,
+    driverSaveVoteThreshold: body.driverSaveVoteThreshold,
+    driverRejectPlaylistId:
+      body.driverRejectPlaylistId === undefined
+        ? undefined
+        : body.driverRejectPlaylistId === null ||
+            body.driverRejectPlaylistId === ""
+          ? null
+          : String(body.driverRejectPlaylistId),
+    driverRejectVoteThreshold: body.driverRejectVoteThreshold,
   });
 
   if (!out.ok) {
@@ -62,6 +76,12 @@ export async function PATCH(req: Request, context: RouteContext) {
     }
     if (out.error === "bad_mode") {
       return NextResponse.json({ error: "Invalid queue mode" }, { status: 400 });
+    }
+    if (out.error === "bad_driver_save") {
+      return NextResponse.json(
+        { error: "Invalid driving log settings" },
+        { status: 400 },
+      );
     }
     if (out.error === "driver_not_member") {
       return NextResponse.json(

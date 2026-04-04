@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { processDriverLogAfterVote } from "@/lib/sessions/driver-save";
 import { upsertSessionVote } from "@/lib/sessions/queue";
 
 type RouteContext = {
@@ -52,6 +53,8 @@ export async function POST(req: Request, context: RouteContext) {
     }
     return NextResponse.json({ error: "Invalid vote" }, { status: 400 });
   }
+
+  await processDriverLogAfterVote(sessionId, queueItemId);
 
   return NextResponse.json({ ok: true });
 }

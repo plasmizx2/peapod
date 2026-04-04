@@ -45,6 +45,10 @@ export function SessionQueuePanel({
   members,
   driverUserId,
   driverSavePlaylistId,
+  driverSaveMode,
+  driverSaveVoteThreshold,
+  driverRejectPlaylistId,
+  driverRejectVoteThreshold,
   onRefresh,
   onPatchSession,
 }: {
@@ -56,11 +60,19 @@ export function SessionQueuePanel({
   members: { userId: string; displayName: string }[];
   driverUserId: string | null;
   driverSavePlaylistId: string | null;
+  driverSaveMode: string;
+  driverSaveVoteThreshold: number;
+  driverRejectPlaylistId: string | null;
+  driverRejectVoteThreshold: number;
   onRefresh: () => void;
   onPatchSession: (body: {
     queueMode?: string;
     driverUserId?: string | null;
     driverSavePlaylistId?: string | null;
+    driverSaveMode?: string;
+    driverSaveVoteThreshold?: number;
+    driverRejectPlaylistId?: string | null;
+    driverRejectVoteThreshold?: number;
   }) => Promise<boolean>;
 }) {
   const [q, setQ] = useState("");
@@ -509,6 +521,52 @@ export function SessionQueuePanel({
     }
   }
 
+  async function setDriverSaveMode(mode: string) {
+    setSettingsBusy(true);
+    const ok = await onPatchSession({ driverSaveMode: mode });
+    setSettingsBusy(false);
+    if (!ok) {
+      setSearchError("Could not update driving log mode");
+    } else {
+      onRefresh();
+    }
+  }
+
+  async function setDriverSaveVoteThresholdUi(n: number) {
+    setSettingsBusy(true);
+    const ok = await onPatchSession({ driverSaveVoteThreshold: n });
+    setSettingsBusy(false);
+    if (!ok) {
+      setSearchError("Invalid vote threshold (use 1–50)");
+    } else {
+      onRefresh();
+    }
+  }
+
+  async function setDriverRejectPlaylist(spotifyPlaylistId: string | null) {
+    setSettingsBusy(true);
+    const ok = await onPatchSession({
+      driverRejectPlaylistId: spotifyPlaylistId,
+    });
+    setSettingsBusy(false);
+    if (!ok) {
+      setSearchError("Could not update parking lot playlist");
+    } else {
+      onRefresh();
+    }
+  }
+
+  async function setDriverRejectVoteThresholdUi(n: number) {
+    setSettingsBusy(true);
+    const ok = await onPatchSession({ driverRejectVoteThreshold: n });
+    setSettingsBusy(false);
+    if (!ok) {
+      setSearchError("Invalid reject line (use -1 to -50)");
+    } else {
+      onRefresh();
+    }
+  }
+
   const unplayedCount = queue.filter((x) => !x.playedAt).length;
 
   return (
@@ -574,9 +632,53 @@ export function SessionQueuePanel({
               Driving log (Spotify)
             </p>
             <p className="mb-2 text-xs text-moss">
-              When you use Play next / Play all, those tracks append to this playlist
-              on your Spotify account.
+              {driverSaveMode === "vote_threshold"
+                ? "Saves to your playlist when net votes reach the threshold below (not from Play next / Play all)."
+                : driverSaveMode === "play_next_only"
+                  ? "Only Play next adds tracks to the log — Play all does not."
+                  : "Play next and Play all can add tracks to your log (each track once per session)."}
             </p>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-moss">Save mode</span>
+              <select
+                disabled={settingsBusy}
+                value={driverSaveMode}
+                onChange={(e) => void setDriverSaveMode(e.target.value)}
+                className="max-w-[min(100%,260px)] rounded-lg border border-forest/15 bg-white px-2 py-1 text-xs text-forest-dark"
+              >
+                <option value="playback">Playback — Play next &amp; Play all</option>
+                <option value="play_next_only">Play next only</option>
+                <option value="vote_threshold">Vote threshold</option>
+              </select>
+            </div>
+            {driverSaveMode === "vote_threshold" ? (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <label className="text-xs text-moss" htmlFor="drv-vote-th">
+                  Save when net votes ≥
+                </label>
+                <input
+                  id="drv-vote-th"
+                  type="number"
+                  min={1}
+                  max={50}
+                  disabled={settingsBusy}
+                  key={`vth-${driverSaveVoteThreshold}`}
+                  defaultValue={driverSaveVoteThreshold}
+                  onBlur={(e) => {
+                    const n = Number.parseInt(e.target.value, 10);
+                    if (
+                      Number.isFinite(n) &&
+                      n >= 1 &&
+                      n <= 50 &&
+                      n !== driverSaveVoteThreshold
+                    ) {
+                      void setDriverSaveVoteThresholdUi(n);
+                    }
+                  }}
+                  className="w-16 rounded-lg border border-forest/15 bg-white px-2 py-1 text-xs text-forest-dark"
+                />
+              </div>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -608,6 +710,58 @@ export function SessionQueuePanel({
                 <span className="text-xs text-moss">Loading playlists…</span>
               )}
             </div>
+            <p className="mb-2 mt-3 text-xs font-medium text-forest-dark">
+              Parking lot (optional)
+            </p>
+            <p className="mb-2 text-xs text-moss">
+              Second playlist for rough consensus — when net votes go at or below
+              the line, append once (same track won&apos;t duplicate).
+            </p>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <label className="text-xs text-moss" htmlFor="drv-rej-th">
+                Reject when net votes ≤
+              </label>
+              <input
+                id="drv-rej-th"
+                type="number"
+                max={-1}
+                min={-50}
+                disabled={settingsBusy}
+                key={`rj-${driverRejectVoteThreshold}`}
+                defaultValue={driverRejectVoteThreshold}
+                onBlur={(e) => {
+                  const n = Number.parseInt(e.target.value, 10);
+                  if (
+                    Number.isFinite(n) &&
+                    n <= -1 &&
+                    n >= -50 &&
+                    n !== driverRejectVoteThreshold
+                  ) {
+                    void setDriverRejectVoteThresholdUi(n);
+                  }
+                }}
+                className="w-16 rounded-lg border border-forest/15 bg-white px-2 py-1 text-xs text-forest-dark"
+              />
+            </div>
+            {playlistsLoaded ? (
+              <select
+                disabled={settingsBusy}
+                value={driverRejectPlaylistId ?? ""}
+                onChange={(e) =>
+                  void setDriverRejectPlaylist(
+                    e.target.value ? e.target.value : null,
+                  )
+                }
+                className="max-w-[min(100%,220px)] rounded-lg border border-forest/15 bg-white px-2 py-1 text-xs text-forest-dark"
+              >
+                <option value="">Off — no parking lot</option>
+                {hostPlaylists.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.tracksTotal} tracks)
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
         </div>
       ) : null}
