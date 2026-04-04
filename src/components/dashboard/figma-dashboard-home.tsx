@@ -5,7 +5,13 @@ import { Music, ArrowRight, Sparkles, Zap, TrendingUp } from "lucide-react";
 import { motion, useMotionValue, useTransform } from "motion/react";
 import { useState } from "react";
 
-export function FigmaDashboardHome({ firstName }: { firstName: string }) {
+export function FigmaDashboardHome({
+  firstName,
+  listeningCount,
+}: {
+  firstName: string;
+  listeningCount: number;
+}) {
   const [isHovering, setIsHovering] = useState(false);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -56,7 +62,9 @@ export function FigmaDashboardHome({ firstName }: { firstName: string }) {
           </motion.span>
         </motion.h1>
         <p className="text-base sm:text-lg text-moss">
-          Now connect Spotify and let the learning begin.
+          {listeningCount > 0
+            ? `${listeningCount.toLocaleString()} plays on file — head to Music services to sync more.`
+            : "Connect Spotify under Music services, then sync recent plays to get started."}
         </p>
       </motion.div>
 

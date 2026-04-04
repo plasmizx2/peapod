@@ -1,9 +1,10 @@
 import {
+  index,
   pgTable,
   text,
   timestamp,
-  uuid,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -54,4 +55,57 @@ export const providerOauthCredentials = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
+);
+
+/** Normalized Spotify catalog (Phase 2). */
+export const artists = pgTable(
+  "artists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    spotifyId: text("spotify_id").notNull().unique(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+);
+
+export const tracks = pgTable(
+  "tracks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    spotifyId: text("spotify_id").notNull().unique(),
+    name: text("name").notNull(),
+    albumName: text("album_name"),
+    primaryArtistId: uuid("primary_artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+);
+
+export const listeningEvents = pgTable(
+  "listening_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerAccountId: uuid("provider_account_id")
+      .notNull()
+      .references(() => providerAccounts.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    listenedAt: timestamp("listened_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("listening_events_user_time_track_idx").on(
+      t.userId,
+      t.listenedAt,
+      t.trackId,
+    ),
+    index("listening_events_user_listened_idx").on(t.userId, t.listenedAt),
+  ],
 );

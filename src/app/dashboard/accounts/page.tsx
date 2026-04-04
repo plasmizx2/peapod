@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { Music } from "lucide-react";
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { providerAccounts } from "@/db/schema";
+import { listeningEvents, providerAccounts } from "@/db/schema";
+import { SpotifySyncButton } from "@/components/dashboard/spotify-sync-button";
 import type { ProviderAccountRow } from "@/types/providers";
 
 function spotifyConnectionHelp(
@@ -54,6 +55,12 @@ export default async function LinkedAccountsPage({
   const spotify = accounts.find((a) => a.providerName === "spotify");
   const apple = accounts.find((a) => a.providerName === "apple_music");
 
+  const [listenRow] = await db
+    .select({ n: count() })
+    .from(listeningEvents)
+    .where(eq(listeningEvents.userId, session.user.id));
+  const listeningCount = Number(listenRow?.n ?? 0);
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
@@ -101,12 +108,32 @@ export default async function LinkedAccountsPage({
                 ? "Connected — we can read your listening activity where you’ve allowed it."
                 : "Not connected yet. Connect to sync your taste."}
             </p>
-            <Link
-              href="/api/auth/spotify"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#1DB954] px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-[#1ed760]"
-            >
-              {spotify ? "Reconnect" : "Connect Spotify"}
-            </Link>
+            <div className="flex flex-col gap-4">
+              <Link
+                href="/api/auth/spotify"
+                className="inline-flex w-fit items-center gap-2 rounded-xl bg-[#1DB954] px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-[#1ed760]"
+              >
+                {spotify ? "Reconnect" : "Connect Spotify"}
+              </Link>
+              {spotify ? (
+                <div className="space-y-3 rounded-2xl border border-forest/10 bg-white/60 p-4">
+                  <p className="text-sm text-moss">
+                    <span className="font-medium text-forest-dark">
+                      {listeningCount.toLocaleString()}
+                    </span>{" "}
+                    plays stored
+                    {spotify.lastSyncedAt
+                      ? ` · Last sync ${spotify.lastSyncedAt.toLocaleString()}`
+                      : " · Not synced yet"}
+                  </p>
+                  <SpotifySyncButton />
+                  <p className="text-xs text-moss">
+                    Fetches up to 50 recent plays from Spotify (may include
+                    duplicates you already imported).
+                  </p>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
