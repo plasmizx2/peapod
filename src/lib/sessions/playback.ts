@@ -2,6 +2,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { listeningSessions, sessionQueue, tracks } from "@/db/schema";
 import { appendPlayedTracksToDriverSavePlaylist } from "@/lib/sessions/driver-save";
+import { friendlyPlaybackFailure } from "@/lib/spotify/playback-errors";
 import { spotifyUserPut } from "@/lib/spotify/user-api";
 
 const SPOTIFY_PLAY_URL = "https://api.spotify.com/v1/me/player/play";
@@ -21,7 +22,7 @@ async function getHostUserId(sessionId: string): Promise<string | null> {
  */
 export async function playNextFromSessionQueue(sessionId: string): Promise<
   | { ok: true }
-  | { ok: false; error: string; status?: number }
+  | { ok: false; error: string; hint?: string; status?: number }
 > {
   const hostUserId = await getHostUserId(sessionId);
   if (!hostUserId) {
@@ -54,9 +55,11 @@ export async function playNextFromSessionQueue(sessionId: string): Promise<
 
   if (!res.ok) {
     const t = await res.text();
+    const friendly = friendlyPlaybackFailure(res.status, t);
     return {
       ok: false,
-      error: t.slice(0, 200) || "Spotify playback failed",
+      error: friendly.message,
+      hint: friendly.hint,
       status: res.status,
     };
   }
@@ -75,7 +78,7 @@ export async function playNextFromSessionQueue(sessionId: string): Promise<
 
 export async function playAllUnplayedFromSessionQueue(sessionId: string): Promise<
   | { ok: true; count: number }
-  | { ok: false; error: string; status?: number }
+  | { ok: false; error: string; hint?: string; status?: number }
 > {
   const hostUserId = await getHostUserId(sessionId);
   if (!hostUserId) {
@@ -107,9 +110,11 @@ export async function playAllUnplayedFromSessionQueue(sessionId: string): Promis
 
   if (!res.ok) {
     const t = await res.text();
+    const friendly = friendlyPlaybackFailure(res.status, t);
     return {
       ok: false,
-      error: t.slice(0, 200) || "Spotify playback failed",
+      error: friendly.message,
+      hint: friendly.hint,
       status: res.status,
     };
   }

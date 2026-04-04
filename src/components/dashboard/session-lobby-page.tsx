@@ -7,6 +7,7 @@ import {
   SessionQueuePanel,
   type QueueItem,
 } from "@/components/dashboard/session-queue-panel";
+import { SpotifyLinkHint } from "@/components/dashboard/spotify-link-hint";
 
 type Member = {
   userId: string;
@@ -320,6 +321,8 @@ export function SessionLobbyPage() {
               </span>
             )}
           </div>
+
+          {!sessionEnded ? <SpotifyLinkHint /> : null}
 
           {sessionEnded ? (
             <p className="mb-4 text-sm text-moss">

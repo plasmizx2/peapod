@@ -16,6 +16,7 @@ Social music intelligence: personal patterns, group sessions, party voting — b
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture notes (some sections still mention Supabase — update as you go) |
 | [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) | Target folder layout |
 | [docs/PHASED_CHECKLIST.md](docs/PHASED_CHECKLIST.md) | Phase gates and build order |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 20-step product / engineering roadmap |
 | [docs/APPLE_MUSIC.md](docs/APPLE_MUSIC.md) | Apple vs Spotify integration notes |
 
 ## Setup
@@ -43,6 +44,15 @@ npm run dev
 - `npm run lint` — ESLint
 - `npm run db:push` — push Drizzle schema to `DATABASE_URL`
 - `npm run db:studio` — Drizzle Studio (optional)
+
+## Production checklist
+
+1. Set **`DATABASE_URL`**, **`AUTH_SECRET`**, **`AUTH_URL`**, **`NEXT_PUBLIC_SITE_URL`** on the host (same public origin, no duplicate keys).
+2. In the [Spotify Dashboard](https://developer.spotify.com/dashboard), add redirect URI: `https://<your-domain>/api/auth/spotify/callback` (and localhost for dev).
+3. Run **`npm run db:push`** against production DB after each deploy that changes `src/db/schema.ts`.
+4. Users must **reconnect Spotify** in Music services after OAuth scopes change.
+
+See **[docs/ROADMAP.md](docs/ROADMAP.md)** Phase A for the full gate list.
 
 ## Repo notes
 

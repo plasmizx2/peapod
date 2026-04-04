@@ -43,10 +43,15 @@ export async function POST(req: Request, context: RouteContext) {
     if (result.error.includes("No unplayed") || result.error.includes("empty")) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
-    return NextResponse.json(
-      { error: result.error || "Playback failed" },
-      { status: status >= 400 && status < 600 ? status : 502 },
-    );
+    const payload: { error: string; hint?: string } = {
+      error: result.error || "Playback failed",
+    };
+    if (result.hint) {
+      payload.hint = result.hint;
+    }
+    return NextResponse.json(payload, {
+      status: status >= 400 && status < 600 ? status : 502,
+    });
   }
 
   if ("count" in result) {

@@ -172,9 +172,13 @@ export function SessionQueuePanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; hint?: string };
       if (!res.ok) {
-        setSearchError(data.error ?? "Playback failed — open Spotify on the host device.");
+        const main =
+          data.error ?? "Playback failed — open Spotify on the host device.";
+        setSearchError(
+          data.hint ? `${main} ${data.hint}` : main,
+        );
         return;
       }
       onRefresh();
