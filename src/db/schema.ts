@@ -246,3 +246,39 @@ export const chatbotRequests = pgTable(
     index("chatbot_requests_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
+
+/** Group listening lobby (Phase 6). */
+export const listeningSessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    hostUserId: uuid("host_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinCode: text("join_code").notNull().unique(),
+    /** active | ended */
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (t) => [index("sessions_join_code_idx").on(t.joinCode)],
+);
+
+export const sessionMembers = pgTable(
+  "session_members",
+  {
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => listeningSessions.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** host | member */
+    role: text("role").notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.userId] }),
+    index("session_members_user_idx").on(t.userId),
+  ],
+);

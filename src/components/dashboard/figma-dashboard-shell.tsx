@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music, Settings, Menu, X } from "lucide-react";
+import { Home, Music, Settings, Menu, Users, X } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { PeaPodLogo } from "@/components/brand/peapod-logo";
@@ -21,6 +21,7 @@ export function FigmaDashboardShell({ children }: { children: React.ReactNode })
 
   const navLinks = [
     { path: "/dashboard", label: "Home", icon: Home },
+    { path: "/dashboard/sessions", label: "Group session", icon: Users },
     { path: "/dashboard/accounts", label: "Music services", icon: Music },
     { path: "/dashboard/settings", label: "Settings", icon: Settings },
   ];
