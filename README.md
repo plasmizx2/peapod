@@ -17,6 +17,7 @@ Social music intelligence: personal patterns, group sessions, party voting — b
 | [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) | Target folder layout |
 | [docs/PHASED_CHECKLIST.md](docs/PHASED_CHECKLIST.md) | Phase gates and build order |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | 20-step product / engineering roadmap |
+| [docs/GOOGLE_OAUTH.md](docs/GOOGLE_OAUTH.md) | Google sign-in: Cloud Console + redirect URIs |
 | [docs/APPLE_MUSIC.md](docs/APPLE_MUSIC.md) | Apple vs Spotify integration notes |
 
 ## Setup

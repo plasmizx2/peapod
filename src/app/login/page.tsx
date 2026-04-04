@@ -3,8 +3,12 @@ import { FigmaAuthShell } from "@/components/figma/figma-auth-shell";
 import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
-  const showGoogle = Boolean(process.env.AUTH_GOOGLE_ID);
-  const showGithub = Boolean(process.env.AUTH_GITHUB_ID);
+  const showGoogle =
+    Boolean(process.env.AUTH_GOOGLE_ID) &&
+    Boolean(process.env.AUTH_GOOGLE_SECRET);
+  const showGithub =
+    Boolean(process.env.AUTH_GITHUB_ID) &&
+    Boolean(process.env.AUTH_GITHUB_SECRET);
 
   return (
     <FigmaAuthShell
