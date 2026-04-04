@@ -260,6 +260,14 @@ export const listeningSessions = pgTable(
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
+    /** manual | equal_play | lean_driver | hype */
+    queueMode: text("queue_mode").notNull().default("manual"),
+    /** For lean_driver: whose taste counts double. */
+    driverUserId: uuid("driver_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Host Spotify playlist id — played session tracks append here (driving log). */
+    driverSavePlaylistId: text("driver_save_playlist_id"),
   },
   (t) => [index("sessions_join_code_idx").on(t.joinCode)],
 );
@@ -280,5 +288,58 @@ export const sessionMembers = pgTable(
   (t) => [
     primaryKey({ columns: [t.sessionId, t.userId] }),
     index("session_members_user_idx").on(t.userId),
+  ],
+);
+
+/** Ordered tracks for a group session (Phase 7 scaffold). */
+export const sessionQueue = pgTable(
+  "session_queue",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => listeningSessions.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    queuePosition: integer("queue_position").notNull(),
+    /** member_add | ai | vote | fallback */
+    sourceType: text("source_type").notNull().default("member_add"),
+    addedByUserId: uuid("added_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    playedAt: timestamp("played_at", { withTimezone: true }),
+    score: doublePrecision("score"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("session_queue_session_position_idx").on(t.sessionId, t.queuePosition),
+    uniqueIndex("session_queue_session_position_uidx").on(
+      t.sessionId,
+      t.queuePosition,
+    ),
+  ],
+);
+
+/** Party votes on queued tracks (Phase 8 scaffold). */
+export const sessionVotes = pgTable(
+  "session_votes",
+  {
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => listeningSessions.id, { onDelete: "cascade" }),
+    queueItemId: uuid("queue_item_id")
+      .notNull()
+      .references(() => sessionQueue.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** +1 upvote, −1 downvote */
+    value: integer("value").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.userId, t.queueItemId] }),
+    index("session_votes_queue_item_idx").on(t.queueItemId),
   ],
 );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { auth } from "@/auth";
 import { AuthSessionProvider } from "@/components/session-provider";
 import "./globals.css";
 
@@ -23,18 +24,22 @@ export const metadata: Metadata = {
   description: "Music that fits how you listen — solo, car, or the whole room.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="relative flex min-h-full flex-col antialiased">
-        <AuthSessionProvider>{children}</AuthSessionProvider>
+        <AuthSessionProvider session={session}>
+          {children}
+        </AuthSessionProvider>
       </body>
     </html>
   );

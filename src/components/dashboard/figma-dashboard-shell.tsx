@@ -48,7 +48,11 @@ export function FigmaDashboardShell({ children }: { children: React.ReactNode })
                 <Menu className="h-6 w-6" />
               )}
             </button>
-            <Link href="/dashboard" className="inline-flex items-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2"
+              aria-label="PeaPod home"
+            >
               <PeaPodLogo size={32} withWordmark wordmarkClassName="text-forest-dark" />
             </Link>
           </div>
@@ -114,7 +118,11 @@ export function FigmaDashboardShell({ children }: { children: React.ReactNode })
                   transition={{ type: "spring", damping: 25 }}
                 >
                   <div className="mb-8">
-                    <Link href="/dashboard" onClick={() => setSidebarOpen(false)}>
+                    <Link
+                      href="/"
+                      onClick={() => setSidebarOpen(false)}
+                      aria-label="PeaPod home"
+                    >
                       <PeaPodLogo size={36} withWordmark wordmarkClassName="text-forest-dark" />
                     </Link>
                   </div>

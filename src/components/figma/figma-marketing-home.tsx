@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Music2, Users, Radio, Zap, Clock, Repeat, Play, Pause } from "lucide-react";
 import { Logo } from "./figma-logo";
+import { HomeHeaderAuthLink, HomeHeroSecondaryCta } from "./home-auth-actions";
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from "motion/react";
 
 function WaveBar({
@@ -136,12 +137,7 @@ export function FigmaMarketingHome() {
                 <Play className="w-3 h-3 text-cyan-bright" />
               )}
             </motion.button>
-            <Link
-              href="/login"
-              className="text-slate-light hover:text-cyan-bright transition-colors text-sm sm:text-base font-medium"
-            >
-              Sign in
-            </Link>
+            <HomeHeaderAuthLink />
           </div>
         </div>
       </motion.header>
@@ -269,21 +265,7 @@ export function FigmaMarketingHome() {
               </motion.button>
             </Link>
 
-            <Link href="/login">
-              <motion.button
-                className="w-full sm:w-auto px-10 py-5 border-2 border-electric-blue/40 rounded-2xl font-semibold text-lg backdrop-blur-sm bg-electric-blue/5"
-                style={{ color: "#8fd4b8" }}
-                whileHover={{ 
-                  scale: 1.05, 
-                  borderColor: "rgba(77, 143, 110, 0.75)",
-                  backgroundColor: "rgba(77, 143, 110, 0.12)",
-                  boxShadow: "0 0 28px rgba(77, 143, 110, 0.28)"
-                }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Sign in
-              </motion.button>
-            </Link>
+            <HomeHeroSecondaryCta />
           </motion.div>
 
           {/* Interactive stats cards with glassmorphism */}
