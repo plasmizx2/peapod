@@ -128,8 +128,8 @@ export default async function LinkedAccountsPage({
                   </p>
                   <SpotifySyncButton />
                   <p className="text-xs text-moss">
-                    Fetches up to 50 recent plays from Spotify (may include
-                    duplicates you already imported).
+                    Walks Spotify history with pagination (up to ~1,250 plays per
+                    run). Rows you already have are skipped.
                   </p>
                 </div>
               ) : null}

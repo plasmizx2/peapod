@@ -18,14 +18,16 @@ export function SpotifySyncButton() {
         ok?: boolean;
         imported?: number;
         skipped?: number;
+        pagesFetched?: number;
         error?: string;
       };
       if (!res.ok) {
         setMessage(data.error ?? "Sync failed");
         return;
       }
+      const pages = data.pagesFetched ?? 1;
       setMessage(
-        `Imported ${data.imported ?? 0} new plays (${data.skipped ?? 0} already had or skipped).`,
+        `Imported ${data.imported ?? 0} new plays (${data.skipped ?? 0} duplicates or skipped) · ${pages} Spotify page${pages === 1 ? "" : "s"}.`,
       );
       router.refresh();
     } catch {

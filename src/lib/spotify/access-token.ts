@@ -19,7 +19,10 @@ export class SpotifyTokenError extends Error {
  * Returns a valid Spotify access token for the user's linked account,
  * refreshing with the refresh token when close to expiry.
  */
-export async function getSpotifyAccessToken(userId: string): Promise<{
+export async function getSpotifyAccessToken(
+  userId: string,
+  opts?: { forceRefresh?: boolean },
+): Promise<{
   accessToken: string;
   providerAccountId: string;
 }> {
@@ -56,7 +59,10 @@ export async function getSpotifyAccessToken(userId: string): Promise<{
 
   const now = Date.now();
   const expiresAt = creds.tokenExpiresAt?.getTime() ?? 0;
-  if (expiresAt > now + REFRESH_MARGIN_MS) {
+  if (
+    !opts?.forceRefresh &&
+    expiresAt > now + REFRESH_MARGIN_MS
+  ) {
     return { accessToken: creds.accessToken, providerAccountId: account.id };
   }
 

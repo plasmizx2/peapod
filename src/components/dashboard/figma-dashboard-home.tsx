@@ -185,7 +185,7 @@ export function FigmaDashboardHome({
             >
               Music services
             </Link>{" "}
-            — sync pulls your latest 50 plays from Spotify.
+            — sync walks your recent Spotify history (paginated).
           </p>
         </motion.div>
       ) : null}
