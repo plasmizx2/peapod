@@ -5,8 +5,15 @@ import { appendPlayedTracksToDriverSavePlaylist } from "@/lib/sessions/driver-sa
 import { friendlyPlaybackFailure } from "@/lib/spotify/playback-errors";
 import { spotifyUserPut } from "@/lib/spotify/user-api";
 
-const SPOTIFY_PLAY_URL = "https://api.spotify.com/v1/me/player/play";
+const SPOTIFY_PLAY_BASE = "https://api.spotify.com/v1/me/player/play";
 const MAX_URIS = 50;
+
+function playUrl(deviceId?: string | null): string {
+  if (!deviceId) {
+    return SPOTIFY_PLAY_BASE;
+  }
+  return `${SPOTIFY_PLAY_BASE}?device_id=${encodeURIComponent(deviceId)}`;
+}
 
 async function getHostUserId(sessionId: string): Promise<string | null> {
   const [s] = await db
@@ -19,8 +26,12 @@ async function getHostUserId(sessionId: string): Promise<string | null> {
 
 /**
  * Playback uses the **host**'s Spotify account (their active device).
+ * Optional `deviceId` targets a specific Spotify Connect device.
  */
-export async function playNextFromSessionQueue(sessionId: string): Promise<
+export async function playNextFromSessionQueue(
+  sessionId: string,
+  deviceId?: string | null,
+): Promise<
   | { ok: true }
   | { ok: false; error: string; hint?: string; status?: number }
 > {
@@ -49,7 +60,7 @@ export async function playNextFromSessionQueue(sessionId: string): Promise<
     return { ok: false, error: "No unplayed tracks in queue" };
   }
 
-  const res = await spotifyUserPut(hostUserId, SPOTIFY_PLAY_URL, {
+  const res = await spotifyUserPut(hostUserId, playUrl(deviceId), {
     uris: [`spotify:track:${row.spotifyId}`],
   });
 
@@ -76,7 +87,10 @@ export async function playNextFromSessionQueue(sessionId: string): Promise<
   return { ok: true };
 }
 
-export async function playAllUnplayedFromSessionQueue(sessionId: string): Promise<
+export async function playAllUnplayedFromSessionQueue(
+  sessionId: string,
+  deviceId?: string | null,
+): Promise<
   | { ok: true; count: number }
   | { ok: false; error: string; hint?: string; status?: number }
 > {
@@ -106,7 +120,7 @@ export async function playAllUnplayedFromSessionQueue(sessionId: string): Promis
   }
 
   const uris = rows.map((r) => `spotify:track:${r.spotifyId}`);
-  const res = await spotifyUserPut(hostUserId, SPOTIFY_PLAY_URL, { uris });
+  const res = await spotifyUserPut(hostUserId, playUrl(deviceId), { uris });
 
   if (!res.ok) {
     const t = await res.text();

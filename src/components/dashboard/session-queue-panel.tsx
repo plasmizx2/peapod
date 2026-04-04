@@ -74,10 +74,18 @@ export function SessionQueuePanel({
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [playlistImportUrl, setPlaylistImportUrl] = useState("");
   const [importBusy, setImportBusy] = useState(false);
+  const [importInterleave, setImportInterleave] = useState(false);
+  const [importFeedback, setImportFeedback] = useState<string | null>(null);
   const [hostPlaylists, setHostPlaylists] = useState<
     { id: string; name: string; tracksTotal: number }[]
   >([]);
   const [playlistsLoaded, setPlaylistsLoaded] = useState(false);
+  const [spotifyDevices, setSpotifyDevices] = useState<
+    { id: string; name: string; is_active: boolean; type: string }[]
+  >([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [transferBusy, setTransferBusy] = useState(false);
 
   const runSearch = useCallback(async (query: string) => {
     const t = query.trim();
@@ -115,6 +123,61 @@ export function SessionQueuePanel({
     const t = setTimeout(() => void runSearch(q), 320);
     return () => clearTimeout(t);
   }, [q, runSearch]);
+
+  const loadSpotifyDevices = useCallback(async () => {
+    if (!isHost || !sessionActive) return;
+    setDevicesLoading(true);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/devices`);
+      const data = (await res.json()) as {
+        devices?: { id: string; name: string; is_active: boolean; type: string }[];
+        error?: string;
+      };
+      if (res.ok && data.devices) {
+        setSpotifyDevices(data.devices);
+        setSelectedDeviceId((prev) => {
+          if (prev && data.devices!.some((d) => d.id === prev)) {
+            return prev;
+          }
+          try {
+            const stored = localStorage.getItem(
+              `peapod_spotify_device_${sessionId}`,
+            );
+            if (stored && data.devices!.some((d) => d.id === stored)) {
+              return stored;
+            }
+          } catch {
+            /* ignore */
+          }
+          const active = data.devices!.find((d) => d.is_active);
+          return active?.id ?? data.devices![0]?.id ?? "";
+        });
+      } else {
+        setSpotifyDevices([]);
+      }
+    } catch {
+      setSpotifyDevices([]);
+    } finally {
+      setDevicesLoading(false);
+    }
+  }, [isHost, sessionActive, sessionId]);
+
+  useEffect(() => {
+    if (!isHost || !sessionActive) {
+      setSpotifyDevices([]);
+      setSelectedDeviceId("");
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(`peapod_spotify_device_${sessionId}`);
+      if (stored) {
+        setSelectedDeviceId(stored);
+      }
+    } catch {
+      /* ignore */
+    }
+    void loadSpotifyDevices();
+  }, [isHost, sessionActive, sessionId, loadSpotifyDevices]);
 
   useEffect(() => {
     if (!isHost || !sessionActive) {
@@ -164,13 +227,52 @@ export function SessionQueuePanel({
     }
   }
 
+  function persistDeviceId(id: string) {
+    setSelectedDeviceId(id);
+    try {
+      if (id) {
+        localStorage.setItem(`peapod_spotify_device_${sessionId}`, id);
+      } else {
+        localStorage.removeItem(`peapod_spotify_device_${sessionId}`);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function activateSpotifyDevice() {
+    if (!selectedDeviceId) return;
+    setTransferBusy(true);
+    setSearchError(null);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/devices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceId: selectedDeviceId }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setSearchError(data.error ?? "Could not switch device");
+        return;
+      }
+      await loadSpotifyDevices();
+    } catch {
+      setSearchError("Could not switch device");
+    } finally {
+      setTransferBusy(false);
+    }
+  }
+
   async function playback(action: "next" | "all") {
     setPlaybackBusy(action);
     try {
       const res = await fetch(`/api/sessions/${sessionId}/playback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...(selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
+        }),
       });
       const data = (await res.json()) as { error?: string; hint?: string };
       if (!res.ok) {
@@ -307,21 +409,58 @@ export function SessionQueuePanel({
   async function importPlaylist() {
     setImportBusy(true);
     setSearchError(null);
+    setImportFeedback(null);
     try {
       const res = await fetch(
         `/api/sessions/${sessionId}/queue/import-playlist`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playlistUrlOrId: playlistImportUrl }),
+          body: JSON.stringify({
+            playlistUrlOrId: playlistImportUrl,
+            interleave: importInterleave,
+          }),
         },
       );
-      const data = (await res.json()) as { error?: string; imported?: number };
+      const data = (await res.json()) as {
+        error?: string;
+        ok?: boolean;
+        imported?: number;
+        skippedDuplicates?: number;
+        scannedFromPlaylist?: number;
+        interleaved?: boolean;
+        message?: string;
+      };
       if (!res.ok) {
         setSearchError(data.error ?? "Import failed");
         return;
       }
       setPlaylistImportUrl("");
+      const imported = data.imported ?? 0;
+      if (imported === 0) {
+        setImportFeedback(
+          data.message ??
+            "No new tracks added — they may already be in the unplayed queue.",
+        );
+      } else {
+        const parts = [
+          `Added ${imported} track${imported === 1 ? "" : "s"}`,
+        ];
+        const skip = data.skippedDuplicates ?? 0;
+        if (skip > 0) {
+          parts.push(
+            `· skipped ${skip} duplicate${skip === 1 ? "" : "s"}`,
+          );
+        }
+        const scanned = data.scannedFromPlaylist ?? 0;
+        if (scanned > 0) {
+          parts.push(`· ${scanned} seen in playlist`);
+        }
+        if (data.interleaved) {
+          parts.push("· interleaved with the current queue");
+        }
+        setImportFeedback(parts.join(" "));
+      }
       onRefresh();
     } catch {
       setSearchError("Import failed");
@@ -480,9 +619,23 @@ export function SessionQueuePanel({
             <span className="font-medium">Merge a Spotify playlist</span>
           </div>
           <p className="mb-2 text-xs text-moss">
-            Paste a playlist link or ID — up to 200 songs append to the group queue
-            (uses your Spotify access).
+            Paste a playlist link or ID — up to 200 tracks (your Spotify access).
+            Songs already in the <strong className="font-medium text-forest-dark">unplayed</strong>{" "}
+            queue are skipped. Long lists may take a few seconds.
           </p>
+          <label className="mb-3 flex cursor-pointer items-start gap-2 text-xs text-moss">
+            <input
+              type="checkbox"
+              checked={importInterleave}
+              onChange={(e) => setImportInterleave(e.target.checked)}
+              className="mt-0.5 rounded border-forest/30"
+            />
+            <span>
+              <strong className="font-medium text-forest-dark">Interleave</strong>{" "}
+              with the current unplayed queue (round-robin: yours, mine, yours…)
+              instead of appending the whole playlist at the end.
+            </span>
+          </label>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               type="text"
@@ -498,9 +651,67 @@ export function SessionQueuePanel({
               className="shrink-0 rounded-lg bg-forest px-3 py-2 text-xs font-medium text-mint-light hover:bg-forest-dark disabled:opacity-50"
             >
               {importBusy ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                  Importing…
+                </span>
               ) : (
                 "Import to queue"
+              )}
+            </button>
+          </div>
+          {importFeedback ? (
+            <p className="mt-2 text-xs text-sage" role="status">
+              {importFeedback}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isHost && sessionActive ? (
+        <div className="mb-4 rounded-xl border border-forest/10 bg-white/50 p-3 text-sm">
+          <p className="text-xs font-medium text-forest-dark">
+            Spotify device (host)
+          </p>
+          <p className="mt-1 text-xs text-moss">
+            Pick a Connect device for Play next / Play all, or use Spotify&apos;s
+            current active player when none is selected.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              value={selectedDeviceId}
+              onChange={(e) => persistDeviceId(e.target.value)}
+              disabled={devicesLoading}
+              className="max-w-[min(100%,280px)] rounded-lg border border-forest/15 bg-white px-2 py-1.5 text-xs text-forest-dark"
+            >
+              <option value="">
+                {devicesLoading ? "Loading devices…" : "Default (active player)"}
+              </option>
+              {spotifyDevices.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                  {d.is_active ? " · active" : ""} ({d.type})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={devicesLoading}
+              onClick={() => void loadSpotifyDevices()}
+              className="rounded-lg border border-forest/20 bg-white/80 px-2 py-1 text-xs font-medium text-forest-dark hover:bg-white disabled:opacity-50"
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              disabled={transferBusy || !selectedDeviceId}
+              onClick={() => void activateSpotifyDevice()}
+              className="rounded-lg bg-forest/10 px-2 py-1 text-xs font-medium text-forest-dark hover:bg-forest/20 disabled:opacity-50"
+            >
+              {transferBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                "Activate"
               )}
             </button>
           </div>

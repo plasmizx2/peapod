@@ -8,7 +8,7 @@ import {
   Music,
   ArrowRight,
   Sparkles,
-  Zap,
+  Users,
   TrendingUp,
 } from "lucide-react";
 import { motion, useMotionValue, useTransform } from "motion/react";
@@ -108,6 +108,17 @@ export function FigmaDashboardHome({
             ? `${listeningCount.toLocaleString()} plays on file — sync again anytime under Music services.`
             : "Connect Spotify under Music services, then sync recent plays to get started."}
         </p>
+        <p className="mt-3 max-w-2xl text-sm text-moss sm:text-base">
+          <span className="font-medium text-forest-dark">Solo</span> is your
+          personal snapshot on this page. With friends,{" "}
+          <Link
+            href="/dashboard/sessions"
+            className="font-medium text-sage underline decoration-sage/40 underline-offset-2 hover:text-forest-dark"
+          >
+            Group session
+          </Link>{" "}
+          is a shared queue and votes — the host plays Spotify on their device.
+        </p>
         {listeningCount > 0 && vibeLine ? (
           <p className="mt-3 text-sm text-sage sm:text-base">{vibeLine}</p>
         ) : null}
@@ -121,7 +132,10 @@ export function FigmaDashboardHome({
           transition={{ duration: 0.5 }}
         >
           <h2 className="font-display text-2xl font-semibold text-forest-dark sm:text-3xl">
-            Your listening
+            Your listening{" "}
+            <span className="text-lg font-normal text-moss sm:text-xl">
+              (solo)
+            </span>
           </h2>
 
           {recentPlays.length > 0 ? (
@@ -459,44 +473,51 @@ export function FigmaDashboardHome({
               </h4>
               <p className="text-moss text-sm leading-relaxed">
                 {listeningCount > 0
-                  ? `Data in: ${listeningCount} plays stored. Patterns & presets next.`
-                  : "Accounts ✓ Spotify rolling in. Pattern detection next. Weekly updates."}
+                  ? `Stats, time patterns, presets, and mood chat — plus group sessions with a join code. ${listeningCount.toLocaleString()} plays stored.`
+                  : "Account ready. Link Spotify to unlock patterns, presets, and group sessions."}
               </p>
             </div>
           </div>
         </motion.div>
 
         <motion.div
-          className="bg-rust/10 rounded-2xl border border-rust/30 p-6 relative overflow-hidden group"
+          className="bg-mint/25 rounded-2xl border border-sage/35 p-6 relative overflow-hidden group"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          whileHover={{ scale: 1.02, borderColor: "rgba(217, 117, 86, 0.5)" }}
+          whileHover={{ scale: 1.02, borderColor: "rgba(127, 168, 143, 0.55)" }}
         >
           <motion.div
-            className="absolute -left-10 -bottom-10 w-32 h-32 bg-rust rounded-full opacity-0 group-hover:opacity-20"
+            className="absolute -left-10 -bottom-10 w-32 h-32 bg-sage rounded-full opacity-0 group-hover:opacity-20"
             animate={{ rotate: 360 }}
             transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
           />
 
           <div className="flex items-start gap-3 relative z-10">
             <motion.div
-              animate={{ 
+              animate={{
                 y: [0, -5, 0],
-                rotate: [0, 10, -10, 0]
+                rotate: [0, 10, -10, 0],
               }}
               transition={{ duration: 3, repeat: Infinity }}
             >
-              <Zap className="w-6 h-6 text-rust flex-shrink-0" />
+              <Users className="w-6 h-6 text-forest-dark flex-shrink-0" />
             </motion.div>
-            <div>
+            <div className="min-w-0 flex-1">
               <h4 className="font-semibold text-forest-dark mb-2">
-                Coming soon
+                Group session
               </h4>
-              <p className="text-moss text-sm leading-relaxed">
-                Skip tracking, time-based patterns, car mode blending. Real
-                features.
+              <p className="text-moss text-sm leading-relaxed mb-4">
+                Share a code, build a queue together, vote — the host plays on
+                their Spotify. Lobby updates live.
               </p>
+              <Link
+                href="/dashboard/sessions"
+                className="inline-flex items-center gap-2 text-sm font-medium text-forest-dark hover:text-sage"
+              >
+                Open group session
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
             </div>
           </div>
         </motion.div>
@@ -515,7 +536,7 @@ export function FigmaDashboardHome({
             <h4 className="font-semibold text-forest-dark">Your progress</h4>
           </div>
           <span className="text-sm text-moss">
-            {listeningCount > 0 ? "Step 2 of 3" : "Step 1 of 3"}
+            {listeningCount > 0 ? "You’re set" : "Get started"}
           </span>
         </div>
 
@@ -523,25 +544,34 @@ export function FigmaDashboardHome({
           <motion.div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-sage to-forest rounded-full"
             initial={{ width: "0%" }}
-            animate={{ width: listeningCount > 0 ? "66%" : "33%" }}
+            animate={{ width: listeningCount > 0 ? "100%" : "33%" }}
             transition={{ duration: 1.5, delay: 0.7, type: "spring" }}
           />
           <motion.div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-white/50 to-transparent rounded-full"
             animate={{ x: ["0%", "300%"] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            style={{ width: listeningCount > 0 ? "66%" : "33%" }}
+            style={{ width: listeningCount > 0 ? "100%" : "33%" }}
           />
         </div>
 
         <p className="text-xs text-moss mt-2">
           {listeningCount > 0 ? (
             <>
-              Account created → <strong>Plays syncing</strong> → Patterns next
+              Spotify linked and plays stored — explore solo stats below, or
+              start a{" "}
+              <Link
+                href="/dashboard/sessions"
+                className="font-medium text-sage underline decoration-sage/40 underline-offset-2 hover:text-forest-dark"
+              >
+                group session
+              </Link>{" "}
+              when you’re together.
             </>
           ) : (
             <>
-              Account created → <strong>Connect music</strong> → Start listening
+              Account created → <strong>Connect music</strong> → Solo + group
+              modes unlock
             </>
           )}
         </p>

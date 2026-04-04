@@ -18,7 +18,7 @@ export async function POST(req: Request, context: RouteContext) {
     return NextResponse.json({ error: "Missing session id" }, { status: 400 });
   }
 
-  let body: { action?: string };
+  let body: { action?: string; deviceId?: string | null };
   try {
     body = await req.json();
   } catch {
@@ -33,10 +33,15 @@ export async function POST(req: Request, context: RouteContext) {
     );
   }
 
+  const deviceId =
+    typeof body.deviceId === "string" && body.deviceId.trim().length > 0
+      ? body.deviceId.trim()
+      : null;
+
   const result =
     action === "next"
-      ? await playNextFromSessionQueue(sessionId)
-      : await playAllUnplayedFromSessionQueue(sessionId);
+      ? await playNextFromSessionQueue(sessionId, deviceId)
+      : await playAllUnplayedFromSessionQueue(sessionId, deviceId);
 
   if (!result.ok) {
     const status = result.status ?? 502;

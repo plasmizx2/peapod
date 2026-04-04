@@ -2,7 +2,24 @@ import Link from "next/link";
 import { FigmaAuthShell } from "@/components/figma/figma-auth-shell";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+function safeCallbackUrl(raw: string | string[] | undefined): string {
+  if (typeof raw !== "string" || raw.length === 0) {
+    return "/dashboard";
+  }
+  if (!raw.startsWith("/") || raw.startsWith("//")) {
+    return "/dashboard";
+  }
+  return raw;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string | string[] }>;
+}) {
+  const sp = await searchParams;
+  const callbackUrl = safeCallbackUrl(sp.callbackUrl);
+
   const showGoogle =
     Boolean(process.env.AUTH_GOOGLE_ID) &&
     Boolean(process.env.AUTH_GOOGLE_SECRET);
@@ -25,7 +42,11 @@ export default function LoginPage() {
         </p>
       }
     >
-      <LoginForm showGoogle={showGoogle} showGithub={showGithub} />
+      <LoginForm
+        callbackUrl={callbackUrl}
+        showGoogle={showGoogle}
+        showGithub={showGithub}
+      />
     </FigmaAuthShell>
   );
 }

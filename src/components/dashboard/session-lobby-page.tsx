@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Radio, Users } from "lucide-react";
@@ -16,6 +17,14 @@ type Member = {
   joinedAt: string;
 };
 
+type NowPlayingSlim = {
+  isPlaying: boolean;
+  deviceName: string | null;
+  trackName: string | null;
+  artistName: string | null;
+  durationMs: number | null;
+};
+
 type LobbyState = {
   joinCode: string;
   status: string;
@@ -26,19 +35,26 @@ type LobbyState = {
   driverSavePlaylistId: string | null;
   members: Member[];
   queue: QueueItem[];
+  nowPlaying: NowPlayingSlim | null;
 };
 
 export function SessionLobbyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionFromUrl = searchParams.get("session");
+  const joinErrorParam = searchParams.get("joinError");
 
   const [joinInput, setJoinInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lobby, setLobby] = useState<LobbyState | null>(null);
+  const [siteOrigin, setSiteOrigin] = useState("");
 
   const activeId = sessionFromUrl;
+
+  useEffect(() => {
+    setSiteOrigin(typeof window !== "undefined" ? window.location.origin : "");
+  }, []);
 
   const fetchLobby = useCallback(async (sessionId: string) => {
     const res = await fetch(`/api/sessions/${sessionId}`);
@@ -53,6 +69,7 @@ export function SessionLobbyPage() {
       queueMode?: string;
       driverUserId?: string | null;
       driverSavePlaylistId?: string | null;
+      nowPlaying?: NowPlayingSlim | null;
     };
     if (!res.ok) {
       setError(data.error ?? "Failed to load session");
@@ -76,10 +93,22 @@ export function SessionLobbyPage() {
         driverUserId: data.driverUserId ?? null,
         driverSavePlaylistId: data.driverSavePlaylistId ?? null,
         queue: data.queue ?? [],
+        nowPlaying: data.nowPlaying ?? null,
       });
       setError(null);
     }
   }, []);
+
+  useEffect(() => {
+    if (joinErrorParam === "not_found") {
+      setError("No session with that code.");
+    } else if (joinErrorParam === "ended") {
+      setError("That session has already ended.");
+    }
+    if (joinErrorParam) {
+      router.replace("/dashboard/sessions", { scroll: false });
+    }
+  }, [joinErrorParam, router]);
 
   const patchSession = useCallback(
     async (body: {
@@ -127,6 +156,7 @@ export function SessionLobbyPage() {
                 queueMode?: string;
                 driverUserId?: string | null;
                 driverSavePlaylistId?: string | null;
+                nowPlaying?: NowPlayingSlim | null;
               };
           if (data.type === "gone") {
             setError("You’re not in this session anymore.");
@@ -145,6 +175,7 @@ export function SessionLobbyPage() {
               driverUserId: data.driverUserId ?? null,
               driverSavePlaylistId: data.driverSavePlaylistId ?? null,
               queue: data.queue ?? [],
+              nowPlaying: data.nowPlaying ?? null,
             });
             setError(null);
           }
@@ -256,6 +287,44 @@ export function SessionLobbyPage() {
           Share a code or join a friend — lobby and queue update live. Host
           plays Spotify on their device; everyone can vote and add tracks.
         </p>
+        <p className="mt-2 text-sm text-moss">
+          Your personal listening stats and presets live on{" "}
+          <Link
+            href="/dashboard"
+            className="font-medium text-sage underline decoration-sage/40 underline-offset-2 hover:text-forest-dark"
+          >
+            Home
+          </Link>{" "}
+          (solo) — this page is for the group queue.
+        </p>
+        <details className="mt-4 rounded-2xl border border-forest/10 bg-cream/60 p-4 text-sm text-moss">
+          <summary className="cursor-pointer font-medium text-forest-dark">
+            Car & crew — how playback works
+          </summary>
+          <ul className="mt-3 list-disc space-y-2 pl-5">
+            <li>
+              Audio plays on the{" "}
+              <strong className="font-medium text-forest-dark">host’s</strong>{" "}
+              Spotify (pick a Connect device in the queue screen). Everyone else
+              steers the queue and votes — they don’t get a separate PeaPod
+              stream on their own device.
+            </li>
+            <li>
+              <strong className="font-medium text-forest-dark">
+                Same car or same room
+              </strong>{" "}
+              is the natural fit: one speaker, shared queue, fair blending.
+            </li>
+            <li>
+              <strong className="font-medium text-forest-dark">
+                Remote friends
+              </strong>{" "}
+              can join with a link or code to add songs and vote, but sound still
+              comes from the host’s speakers only — not synced playback to every
+              listener’s headphones.
+            </li>
+          </ul>
+        </details>
       </div>
 
       {!activeId ? (
@@ -329,13 +398,60 @@ export function SessionLobbyPage() {
               This session has ended. You can leave when you&apos;re done.
             </p>
           ) : (
-            <p className="text-sm text-moss">
-              Share code:{" "}
-              <span className="font-mono text-lg font-semibold tracking-widest text-forest-dark">
-                {lobby.joinCode}
-              </span>
-            </p>
+            <>
+              <p className="text-sm text-moss">
+                Share code:{" "}
+                <span className="font-mono text-lg font-semibold tracking-widest text-forest-dark">
+                  {lobby.joinCode}
+                </span>
+              </p>
+              <p className="mt-2 text-xs text-moss">
+                Join link:{" "}
+                <span className="break-all font-mono text-forest-dark">
+                  {siteOrigin
+                    ? `${siteOrigin}/join/${lobby.joinCode}`
+                    : `/join/${lobby.joinCode}`}
+                </span>
+              </p>
+            </>
           )}
+
+          {!sessionEnded && lobby.nowPlaying ? (
+            <div className="mt-4 rounded-xl border border-forest/10 bg-white/60 p-3 text-sm">
+              <p className="text-xs font-medium text-forest-dark">
+                Host — now playing
+              </p>
+              {lobby.nowPlaying.trackName ? (
+                <p className="mt-1 text-forest-dark">
+                  <span className="font-medium">{lobby.nowPlaying.trackName}</span>
+                  {lobby.nowPlaying.artistName ? (
+                    <span className="text-moss">
+                      {" "}
+                      — {lobby.nowPlaying.artistName}
+                    </span>
+                  ) : null}
+                </p>
+              ) : (
+                <p className="mt-1 text-moss">
+                  Nothing playing on Spotify right now.
+                </p>
+              )}
+              {lobby.nowPlaying.deviceName ? (
+                <p className="mt-1 text-xs text-moss">
+                  Device: {lobby.nowPlaying.deviceName}
+                </p>
+              ) : null}
+              {lobby.nowPlaying.trackName ? (
+                <p className="mt-1 text-xs text-moss">
+                  {lobby.nowPlaying.isPlaying ? (
+                    <span className="text-[#1DB954]">Playing</span>
+                  ) : (
+                    <span>Paused</span>
+                  )}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <p className="mt-1 text-xs text-moss">
             {lobby.members.length} participant

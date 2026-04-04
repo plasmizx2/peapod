@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import type { SpotifyTrackPayload } from "@/lib/spotify/catalog-track";
 import { upsertCatalogTrack } from "@/lib/spotify/catalog-track";
 import { spotifyUserGet } from "@/lib/spotify/user-api";
+import { rateLimit } from "@/lib/rate-limit";
 import { appendSessionQueueTrack, reorderSessionQueue } from "@/lib/sessions/queue";
 
 type RouteContext = { params: Promise<{ sessionId: string }> };
@@ -59,6 +60,15 @@ export async function POST(req: Request, context: RouteContext) {
   const { sessionId } = await context.params;
   if (!sessionId) {
     return NextResponse.json({ error: "Missing session id" }, { status: 400 });
+  }
+
+  if (
+    !rateLimit(`queue-add:${session.user.id}:${sessionId}`, 45, 60_000)
+  ) {
+    return NextResponse.json(
+      { error: "Too many tracks added — wait a moment." },
+      { status: 429 },
+    );
   }
 
   let body: { spotifyTrackId?: string };

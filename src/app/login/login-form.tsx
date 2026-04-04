@@ -7,11 +7,16 @@ import { Mail, Lock } from "lucide-react";
 import { motion } from "motion/react";
 
 type Props = {
+  callbackUrl?: string;
   showGoogle: boolean;
   showGithub: boolean;
 };
 
-export function LoginForm({ showGoogle, showGithub }: Props) {
+export function LoginForm({
+  callbackUrl = "/dashboard",
+  showGoogle,
+  showGithub,
+}: Props) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,14 +38,14 @@ export function LoginForm({ showGoogle, showGithub }: Props) {
       setError("Invalid email or password.");
       return;
     }
-    router.push("/dashboard");
+    router.push(callbackUrl);
     router.refresh();
   }
 
   async function oauthSignIn(provider: "google" | "github") {
     setError(null);
     setOauthLoading(provider);
-    await signIn(provider, { callbackUrl: "/dashboard" });
+    await signIn(provider, { callbackUrl });
     setOauthLoading(null);
   }
 

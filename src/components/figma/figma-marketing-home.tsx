@@ -2,7 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Music2, Users, Radio, Zap, Clock, Repeat, Play, Pause } from "lucide-react";
+import {
+  Music2,
+  Users,
+  Radio,
+  Zap,
+  Clock,
+  Repeat,
+  Play,
+  Pause,
+  Speaker,
+  Car,
+  Globe2,
+} from "lucide-react";
 import { Logo } from "./figma-logo";
 import { HomeHeaderAuthLink, HomeHeroSecondaryCta } from "./home-auth-actions";
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from "motion/react";
@@ -364,8 +376,8 @@ export function FigmaMarketingHome() {
               {
                 icon: Users,
                 title: "Car / crew",
-                desc: "Three people, three libraries, one aux cord. Democratic blending without the loudest person winning.",
-                status: "Next",
+                desc: "Three libraries, one aux cord — group session is live: shared queue, votes, and a join link. Playback stays on the host’s Spotify; see below for same-room vs remote.",
+                status: "Beta",
                 gradient: "from-purple to-violet",
               },
               {
@@ -433,6 +445,119 @@ export function FigmaMarketingHome() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Car / crew — host device, same room vs remote (honest limits) */}
+      <section className="relative py-20 sm:py-28 border-t border-electric-blue/15 overflow-hidden">
+        <motion.div
+          className="absolute inset-0 opacity-[0.07] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(95, 168, 138, 0.5), transparent 55%)",
+          }}
+        />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.7 }}
+          >
+            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+              Car & crew —{" "}
+              <span className="bg-gradient-to-r from-cyan-bright to-electric-blue bg-clip-text text-transparent">
+                how group session works
+              </span>
+            </h2>
+            <p className="text-slate-light text-base sm:text-lg max-w-3xl mb-12 leading-relaxed">
+              Group sessions are real today: a shared queue, votes, and a code or
+              link to join. Here’s what that means in the car, in one room, or
+              with friends far away — so nobody expects magic we don’t do yet.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Speaker,
+                title: "Host device",
+                body: "Sound comes from the host’s Spotify — their phone, car, or a Connect speaker they pick in the app. PeaPod doesn’t play music on everyone else’s phone as one synchronized stream.",
+                accent: "#5fa88a",
+              },
+              {
+                icon: Car,
+                title: "Same room or same car",
+                body: "The sweet spot: one speaker everyone hears. People add songs and vote; the host runs playback — democratic blending without the loudest voice always winning.",
+                accent: "#9cac54",
+              },
+              {
+                icon: Globe2,
+                title: "Remote friends",
+                body: "Anyone can join from anywhere to add tracks and vote. Playback still happens on the host’s device only — it’s not multi-house sync to every listener’s headphones (that’s a different product).",
+                accent: "#c86b54",
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55, delay: i * 0.08 }}
+                className="backdrop-blur-xl rounded-3xl p-7 border border-electric-blue/20 h-full"
+                style={{
+                  backgroundColor: "rgba(28, 38, 32, 0.55)",
+                }}
+              >
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                  style={{
+                    backgroundColor: `${item.accent}22`,
+                    boxShadow: `0 0 24px ${item.accent}33`,
+                  }}
+                >
+                  <item.icon
+                    className="w-6 h-6"
+                    style={{
+                      color: item.accent,
+                      filter: "drop-shadow(0 0 8px currentColor)",
+                    }}
+                    aria-hidden
+                  />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                <p className="text-slate-light text-sm leading-relaxed">
+                  {item.body}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div
+            className="mt-12 flex flex-wrap items-center gap-4"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center px-8 py-3.5 rounded-2xl font-semibold border-2 border-electric-blue/40 text-cyan-bright hover:border-cyan-bright/60 hover:bg-electric-blue/10 transition-colors"
+            >
+              Sign in — group session
+            </Link>
+            <Link
+              href="/signup"
+              className="inline-flex items-center justify-center px-8 py-3.5 rounded-2xl font-semibold text-navy"
+              style={{
+                background:
+                  "linear-gradient(135deg, #4d8f6e 0%, #5fa88a 45%, #97cd97 100%)",
+                boxShadow: "0 0 28px rgba(77, 143, 110, 0.35)",
+              }}
+            >
+              Join beta
+            </Link>
+          </motion.div>
         </div>
       </section>
 

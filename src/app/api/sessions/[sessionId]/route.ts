@@ -5,6 +5,10 @@ import {
   updateSessionQueueSettings,
 } from "@/lib/sessions/create-session";
 import { getSessionQueue } from "@/lib/sessions/queue";
+import {
+  getHostNowPlayingPayloadCached,
+  slimNowPlaying,
+} from "@/lib/spotify/player-devices";
 
 type RouteContext = { params: Promise<{ sessionId: string }> };
 
@@ -88,11 +92,15 @@ export async function GET(_req: Request, context: RouteContext) {
   }
 
   const queue = await getSessionQueue(sessionId, session.user.id);
+  const nowPlaying = slimNowPlaying(
+    await getHostNowPlayingPayloadCached(lobby.hostUserId),
+  );
 
   return NextResponse.json({
     ok: true,
     isHost: session.user.id === lobby.hostUserId,
     queue: queue ?? [],
+    nowPlaying,
     ...lobby,
   });
 }

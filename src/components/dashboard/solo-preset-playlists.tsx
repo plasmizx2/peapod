@@ -49,7 +49,8 @@ export function SoloPresetPlaylists() {
         </h3>
       </div>
       <p className="mb-4 text-sm text-moss">
-        Ranked from your library stats — open in Spotify coming later.
+        Ranked from your library stats — same taste picture you see above, in
+        playlist form. (Open in Spotify is next.)
       </p>
       <div className="flex flex-wrap gap-2">
         {SOLO_PRESETS.map((p) => (
