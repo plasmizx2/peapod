@@ -1,16 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { Music, ArrowRight, Sparkles, Zap, TrendingUp } from "lucide-react";
+import { Clock, Mic2, Music, ArrowRight, Sparkles, Zap, TrendingUp } from "lucide-react";
 import { motion, useMotionValue, useTransform } from "motion/react";
 import { useState } from "react";
+import type { RecentPlay, TopArtist, TopTrack } from "@/types/listening";
+
+function formatPlayedAt(iso: string) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export function FigmaDashboardHome({
   firstName,
   listeningCount,
+  recentPlays,
+  topTracks,
+  topArtists,
 }: {
   firstName: string;
   listeningCount: number;
+  recentPlays: RecentPlay[];
+  topTracks: TopTrack[];
+  topArtists: TopArtist[];
 }) {
   const [isHovering, setIsHovering] = useState(false);
   const x = useMotionValue(0);
@@ -63,10 +81,114 @@ export function FigmaDashboardHome({
         </motion.h1>
         <p className="text-base sm:text-lg text-moss">
           {listeningCount > 0
-            ? `${listeningCount.toLocaleString()} plays on file — head to Music services to sync more.`
+            ? `${listeningCount.toLocaleString()} plays on file — sync again anytime under Music services.`
             : "Connect Spotify under Music services, then sync recent plays to get started."}
         </p>
       </motion.div>
+
+      {listeningCount > 0 ? (
+        <motion.div
+          className="space-y-6"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="font-display text-2xl font-semibold text-forest-dark sm:text-3xl">
+            Your listening
+          </h2>
+
+          {recentPlays.length > 0 ? (
+            <div className="rounded-3xl border border-forest/10 bg-cream p-6 shadow-lg sm:p-8">
+              <div className="mb-4 flex items-center gap-2">
+                <Clock className="h-5 w-5 text-sage" aria-hidden />
+                <h3 className="text-lg font-semibold text-forest-dark">
+                  Recent plays
+                </h3>
+              </div>
+              <ul className="divide-y divide-forest/10">
+                {recentPlays.map((p) => (
+                  <li
+                    key={`${p.listenedAtIso}-${p.trackName}`}
+                    className="flex flex-col gap-1 py-3 first:pt-0 sm:flex-row sm:items-baseline sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-medium text-forest-dark">
+                        {p.trackName}
+                      </p>
+                      <p className="text-sm text-moss">
+                        {p.artistName}
+                        {p.albumName ? ` · ${p.albumName}` : null}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-xs text-moss sm:text-sm">
+                      {formatPlayedAt(p.listenedAtIso)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {topTracks.length > 0 ? (
+              <div className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8">
+                <div className="mb-4 flex items-center gap-2">
+                  <Music className="h-5 w-5 text-[#1DB954]" aria-hidden />
+                  <h3 className="text-lg font-semibold text-forest-dark">
+                    Top songs
+                  </h3>
+                </div>
+                <ol className="list-decimal space-y-3 pl-5 text-moss">
+                  {topTracks.map((t, i) => (
+                    <li key={`top-track-${i}`} className="pl-1">
+                      <span className="font-medium text-forest-dark">
+                        {t.trackName}
+                      </span>
+                      <span className="text-moss"> — {t.artistName}</span>
+                      <span className="ml-2 text-xs text-moss">
+                        ({t.plays}×)
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+
+            {topArtists.length > 0 ? (
+              <div className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8">
+                <div className="mb-4 flex items-center gap-2">
+                  <Mic2 className="h-5 w-5 text-sage" aria-hidden />
+                  <h3 className="text-lg font-semibold text-forest-dark">
+                    Top artists
+                  </h3>
+                </div>
+                <ol className="list-decimal space-y-3 pl-5 text-moss">
+                  {topArtists.map((a, i) => (
+                    <li key={`top-artist-${i}`} className="pl-1">
+                      <span className="font-medium text-forest-dark">
+                        {a.artistName}
+                      </span>
+                      <span className="ml-2 text-xs text-moss">
+                        ({a.plays} plays)
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+          </div>
+
+          <p className="text-center text-sm text-moss">
+            <Link
+              href="/dashboard/accounts"
+              className="font-medium text-sage underline decoration-sage/40 underline-offset-2 hover:text-forest-dark"
+            >
+              Music services
+            </Link>{" "}
+            — sync pulls your latest 50 plays from Spotify.
+          </p>
+        </motion.div>
+      ) : null}
 
       {/* 3D Tilt Card */}
       <motion.div
@@ -143,11 +265,12 @@ export function FigmaDashboardHome({
 
           <div className="flex-1 w-full sm:w-auto">
             <h3 className="text-2xl sm:text-3xl mb-3 text-forest-dark font-semibold">
-              Connect Spotify
+              {listeningCount > 0 ? "Music services" : "Connect Spotify"}
             </h3>
             <p className="text-sm sm:text-base text-moss mb-6 leading-relaxed">
-              30 seconds to link your account. Then we pull listening history,
-              analyze patterns, and start building your personal music brain.
+              {listeningCount > 0
+                ? "Link, reconnect, or run another sync — everything stays on our servers."
+                : "30 seconds to link your account. Then we pull listening history, analyze patterns, and start building your personal music brain."}
             </p>
 
             <Link href="/dashboard/accounts">
@@ -163,7 +286,7 @@ export function FigmaDashboardHome({
                   transition={{ duration: 0.3 }}
                 />
                 <span className="relative z-10 flex items-center gap-2">
-                  Let&apos;s go
+                  {listeningCount > 0 ? "Open music services" : "Let&apos;s go"}
                   <motion.div
                     animate={{ x: [0, 5, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
@@ -207,8 +330,9 @@ export function FigmaDashboardHome({
                 What&apos;s live
               </h4>
               <p className="text-moss text-sm leading-relaxed">
-                Accounts ✓ Spotify rolling in. Pattern detection next. Weekly
-                updates.
+                {listeningCount > 0
+                  ? `Data in: ${listeningCount} plays stored. Patterns & presets next.`
+                  : "Accounts ✓ Spotify rolling in. Pattern detection next. Weekly updates."}
               </p>
             </div>
           </div>
@@ -262,26 +386,36 @@ export function FigmaDashboardHome({
             <TrendingUp className="w-5 h-5 text-sage" />
             <h4 className="font-semibold text-forest-dark">Your progress</h4>
           </div>
-          <span className="text-sm text-moss">Step 1 of 3</span>
+          <span className="text-sm text-moss">
+            {listeningCount > 0 ? "Step 2 of 3" : "Step 1 of 3"}
+          </span>
         </div>
 
         <div className="relative h-3 bg-mint/30 rounded-full overflow-hidden">
           <motion.div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-sage to-forest rounded-full"
             initial={{ width: "0%" }}
-            animate={{ width: "33%" }}
+            animate={{ width: listeningCount > 0 ? "66%" : "33%" }}
             transition={{ duration: 1.5, delay: 0.7, type: "spring" }}
           />
           <motion.div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-white/50 to-transparent rounded-full"
             animate={{ x: ["0%", "300%"] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            style={{ width: "33%" }}
+            style={{ width: listeningCount > 0 ? "66%" : "33%" }}
           />
         </div>
 
         <p className="text-xs text-moss mt-2">
-          Account created → <strong>Connect music</strong> → Start listening
+          {listeningCount > 0 ? (
+            <>
+              Account created → <strong>Plays syncing</strong> → Patterns next
+            </>
+          ) : (
+            <>
+              Account created → <strong>Connect music</strong> → Start listening
+            </>
+          )}
         </p>
       </motion.div>
     </div>
