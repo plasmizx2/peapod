@@ -18,6 +18,10 @@ export function isSoloPresetId(s: string): s is SoloPresetId {
   return SOLO_PRESETS.some((p) => p.id === s);
 }
 
+export function presetLabel(preset: SoloPresetId): string {
+  return LABEL[preset];
+}
+
 export function presetTitle(preset: SoloPresetId): string {
   return `${LABEL[preset]} — for you`;
 }

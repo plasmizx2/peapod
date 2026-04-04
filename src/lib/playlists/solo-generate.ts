@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   artists,
@@ -58,14 +58,21 @@ export type GeneratedTrackRow = {
 /**
  * Ranks tracks from materialized stats, persists a `generated_playlists` row + tracks.
  */
-export async function generateSoloPlaylist(
+export async function generatePresetPlaylist(
   userId: string,
   preset: SoloPresetId,
+  opts?: {
+    sourceType?: "solo" | "chatbot";
+    titleOverride?: string;
+  },
 ): Promise<{
   playlistId: string;
   title: string;
   tracks: GeneratedTrackRow[];
 }> {
+  const sourceType = opts?.sourceType ?? "solo";
+  const title = opts?.titleOverride ?? presetTitle(preset);
+
   const rows = await db
     .select({
       trackId: userTrackStats.trackId,
@@ -99,13 +106,11 @@ export async function generateSoloPlaylist(
     .sort((a, b) => b.score - a.score)
     .slice(0, 28);
 
-  const title = presetTitle(preset);
-
   const [pl] = await db
     .insert(generatedPlaylists)
     .values({
       userId,
-      sourceType: "solo",
+      sourceType,
       preset,
       title,
     })
@@ -131,6 +136,69 @@ export async function generateSoloPlaylist(
     title,
     tracks: scored.map((r, i) => ({
       position: i + 1,
+      trackName: r.trackName,
+      artistName: r.artistName,
+      score: r.score,
+    })),
+  };
+}
+
+export async function generateSoloPlaylist(
+  userId: string,
+  preset: SoloPresetId,
+): Promise<{
+  playlistId: string;
+  title: string;
+  tracks: GeneratedTrackRow[];
+}> {
+  return generatePresetPlaylist(userId, preset, { sourceType: "solo" });
+}
+
+export async function loadGeneratedPlaylistForUser(
+  userId: string,
+  playlistId: string,
+): Promise<{
+  playlistId: string;
+  title: string;
+  preset: SoloPresetId;
+  tracks: GeneratedTrackRow[];
+} | null> {
+  const [pl] = await db
+    .select({
+      id: generatedPlaylists.id,
+      title: generatedPlaylists.title,
+      preset: generatedPlaylists.preset,
+    })
+    .from(generatedPlaylists)
+    .where(
+      and(
+        eq(generatedPlaylists.id, playlistId),
+        eq(generatedPlaylists.userId, userId),
+      ),
+    )
+    .limit(1);
+
+  if (!pl) return null;
+
+  const rows = await db
+    .select({
+      position: generatedPlaylistTracks.position,
+      trackName: tracks.name,
+      artistName: artists.name,
+      score: generatedPlaylistTracks.score,
+    })
+    .from(generatedPlaylistTracks)
+    .innerJoin(tracks, eq(generatedPlaylistTracks.trackId, tracks.id))
+    .innerJoin(artists, eq(tracks.primaryArtistId, artists.id))
+    .where(eq(generatedPlaylistTracks.playlistId, playlistId))
+    .orderBy(asc(generatedPlaylistTracks.position));
+
+  return {
+    playlistId: pl.id,
+    title: pl.title,
+    preset: pl.preset as SoloPresetId,
+    tracks: rows.map((r) => ({
+      position: r.position,
       trackName: r.trackName,
       artistName: r.artistName,
       score: r.score,

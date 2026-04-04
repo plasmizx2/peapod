@@ -222,3 +222,27 @@ export const generatedPlaylistTracks = pgTable(
     index("generated_playlist_tracks_playlist_idx").on(t.playlistId),
   ],
 );
+
+/** Mood chatbot prompts + outcomes (Phase 5). */
+export const chatbotRequests = pgTable(
+  "chatbot_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    promptText: text("prompt_text").notNull(),
+    mappedPreset: text("mapped_preset").notNull(),
+    intentLabel: text("intent_label"),
+    explanation: text("explanation").notNull(),
+    playlistId: uuid("playlist_id").references(() => generatedPlaylists.id, {
+      onDelete: "set null",
+    }),
+    /** Follow-up only: lift / stay / shift. */
+    adjustment: text("adjustment"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("chatbot_requests_user_created_idx").on(t.userId, t.createdAt),
+  ],
+);

@@ -1,0 +1,164 @@
+import { count, eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { chatbotRequests, userTrackStats } from "@/db/schema";
+import { applyMoodAdjustment } from "@/lib/chatbot/adjust-preset";
+import { mapPromptToPreset } from "@/lib/chatbot/map-intent";
+import {
+  buildAdjustmentExplanation,
+  buildMoodExplanation,
+} from "@/lib/chatbot/mood-explanation";
+import { ensureUserListeningStats } from "@/lib/data/rebuild-user-stats";
+import { presetLabel } from "@/lib/playlists/presets";
+import {
+  generatePresetPlaylist,
+  loadGeneratedPlaylistForUser,
+} from "@/lib/playlists/solo-generate";
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const userId = session.user.id;
+
+  let body: {
+    prompt?: string;
+    adjustment?: string;
+    lastPlaylistId?: string;
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  await ensureUserListeningStats(userId);
+
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(userTrackStats)
+    .where(eq(userTrackStats.userId, userId));
+
+  if (Number(n ?? 0) === 0) {
+    return NextResponse.json(
+      { error: "No listening data yet — sync Spotify under Music services." },
+      { status: 400 },
+    );
+  }
+
+  const isAdj =
+    body.adjustment === "lift" ||
+    body.adjustment === "stay" ||
+    body.adjustment === "shift";
+  const lastId =
+    typeof body.lastPlaylistId === "string" ? body.lastPlaylistId.trim() : "";
+
+  if (body.adjustment !== undefined && body.adjustment !== "") {
+    if (!isAdj) {
+      return NextResponse.json({ error: "Invalid adjustment" }, { status: 400 });
+    }
+    if (!lastId) {
+      return NextResponse.json(
+        { error: "lastPlaylistId is required for Lift / Stay / Shift" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (isAdj && lastId) {
+    const adj = body.adjustment as "lift" | "stay" | "shift";
+
+    const loaded = await loadGeneratedPlaylistForUser(userId, lastId);
+    if (!loaded) {
+      return NextResponse.json({ error: "Playlist not found" }, { status: 404 });
+    }
+
+    const fromPreset = loaded.preset;
+    const toPreset = applyMoodAdjustment(fromPreset, adj);
+    const explanation = buildAdjustmentExplanation(adj, fromPreset, toPreset);
+
+    if (adj === "stay") {
+      await db.insert(chatbotRequests).values({
+        userId,
+        promptText: `(follow-up: ${adj})`,
+        mappedPreset: toPreset,
+        intentLabel: presetLabel(toPreset),
+        explanation,
+        playlistId: loaded.playlistId,
+        adjustment: adj,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        playlistId: loaded.playlistId,
+        title: loaded.title,
+        preset: toPreset,
+        explanation,
+        tracks: loaded.tracks,
+        intentLabel: presetLabel(toPreset),
+      });
+    }
+
+    const result = await generatePresetPlaylist(userId, toPreset, {
+      sourceType: "chatbot",
+      titleOverride: `Chat — ${presetLabel(toPreset)}`,
+    });
+
+    await db.insert(chatbotRequests).values({
+      userId,
+      promptText: `(follow-up: ${adj})`,
+      mappedPreset: toPreset,
+      intentLabel: presetLabel(toPreset),
+      explanation,
+      playlistId: result.playlistId,
+      adjustment: adj,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      playlistId: result.playlistId,
+      title: result.title,
+      preset: toPreset,
+      explanation,
+      tracks: result.tracks,
+      intentLabel: presetLabel(toPreset),
+    });
+  }
+
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  if (!prompt) {
+    return NextResponse.json(
+      { error: "Describe a mood or moment (or use Lift / Stay / Shift after a playlist)." },
+      { status: 400 },
+    );
+  }
+
+  const { preset, intentLabel } = mapPromptToPreset(prompt);
+  const explanation = buildMoodExplanation(preset, intentLabel);
+  const result = await generatePresetPlaylist(userId, preset, {
+    sourceType: "chatbot",
+    titleOverride: `Chat — ${presetLabel(preset)}`,
+  });
+
+  await db.insert(chatbotRequests).values({
+    userId,
+    promptText: prompt.slice(0, 2000),
+    mappedPreset: preset,
+    intentLabel,
+    explanation,
+    playlistId: result.playlistId,
+    adjustment: null,
+  });
+
+  return NextResponse.json({
+    ok: true,
+    playlistId: result.playlistId,
+    title: result.title,
+    preset,
+    explanation,
+    tracks: result.tracks,
+    intentLabel,
+  });
+}

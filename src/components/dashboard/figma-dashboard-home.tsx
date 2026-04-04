@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, useMotionValue, useTransform } from "motion/react";
 import { useState } from "react";
+import { MoodChatPanel } from "@/components/dashboard/mood-chat-panel";
 import { SoloPresetPlaylists } from "@/components/dashboard/solo-preset-playlists";
 import type {
   RecentPlay,
@@ -302,6 +303,8 @@ export function FigmaDashboardHome({
           </div>
 
           <SoloPresetPlaylists />
+
+          <MoodChatPanel />
 
           <p className="text-center text-sm text-moss">
             <Link
