@@ -179,6 +179,8 @@ export async function importSpotifyPlaylistIntoSession(
     }
     if (!res.ok) {
       const status = res.status;
+      const errBody = await res.text();
+      console.error("[playlist-import] Spotify error", status, errBody.slice(0, 500), "url:", url);
       if (status === 404) {
         return { ok: false, reason: "playlist_not_found" };
       }
