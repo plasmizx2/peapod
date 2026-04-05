@@ -190,8 +190,9 @@ export async function importSpotifyPlaylistIntoSession(
       }
       if (status === 403 && url.includes("/tracks")) {
         // Spotify blocks /tracks for playlists containing music videos.
-        // Fall back to GET /playlists/{id} which returns the first page inline.
-        const baseUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(spotifyPlaylistId)}?fields=tracks(items(track(id,name,artists,album,duration_ms,explicit,type)),next)`;
+        // Fall back to GET /playlists/{id} which embeds first 100 tracks inline.
+        const baseUrl = `https://api.spotify.com/v1/playlists/${spotifyPlaylistId}`;
+        console.error("[playlist-import] /tracks blocked, trying fallback:", baseUrl);
         let baseRes: Response;
         try {
           baseRes = await spotifyUserGet(importerUserId, baseUrl);
@@ -201,7 +202,8 @@ export async function importSpotifyPlaylistIntoSession(
           throw e;
         }
         if (!baseRes.ok) {
-          console.error("[playlist-import] fallback also failed", baseRes.status);
+          const fallbackBody = await baseRes.text();
+          console.error("[playlist-import] fallback also failed", baseRes.status, fallbackBody.slice(0, 300));
           return { ok: false, reason: "playlist_forbidden" };
         }
         const baseJson = (await baseRes.json()) as PlaylistJson;
