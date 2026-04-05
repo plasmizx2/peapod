@@ -108,8 +108,16 @@ export async function POST(req: Request, context: RouteContext) {
           : "Couldn’t read that playlist from Spotify. Check the link, reconnect under Music services if needed, or use a playlist you can open in the Spotify app while logged in as this account.";
       return NextResponse.json({ error: hint }, { status: 502 });
     }
+    
+    if (out.reason === "empty") {
+      return NextResponse.json(
+        { error: "That playlist is either empty, entirely consists of unplayable Local Files, or lacks valid tracks." },
+        { status: 400 },
+      );
+    }
+    
     return NextResponse.json(
-      { error: "No tracks could be imported" },
+      { error: "No playable tracks were found to import." },
       { status: 400 },
     );
   }
