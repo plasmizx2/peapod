@@ -10,8 +10,9 @@ import {
   Sparkles,
   Users,
   TrendingUp,
+  ChevronDown,
 } from "lucide-react";
-import { motion, useMotionValue, useTransform } from "motion/react";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "motion/react";
 import { useState } from "react";
 import { MoodChatPanel } from "@/components/dashboard/mood-chat-panel";
 import { SoloPresetPlaylists } from "@/components/dashboard/solo-preset-playlists";
@@ -63,7 +64,10 @@ export function FigmaDashboardHome({
   forgottenTracks: ForgottenTrack[];
   songOfDay: SongOfTheDayResult | null;
 }) {
+  const [chatOpen, setChatOpen] = useState(false);
+  const [songOfDayExpanded, setSongOfDayExpanded] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   
@@ -130,6 +134,53 @@ export function FigmaDashboardHome({
         </p>
         {listeningCount > 0 && vibeLine ? (
           <p className="mt-3 text-sm text-sage sm:text-base">{vibeLine}</p>
+        ) : null}
+
+        {/* Dropdown Song of the day */}
+        {songOfDay ? (
+          <div className="mt-6 w-full max-w-2xl rounded-2xl border border-sage/20 bg-forest/5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setSongOfDayExpanded(!songOfDayExpanded)}
+              className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-forest/5 focus:outline-none rounded-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <Music className="h-4 w-4 text-sage" />
+                <span className="text-sm font-medium text-forest-dark sm:text-base">
+                  PeaPod&apos;s Pick For You:{" "}
+                  <span className="font-semibold">{songOfDay.trackName}</span>
+                </span>
+              </div>
+              <motion.div
+                animate={{ rotate: songOfDayExpanded ? 180 : 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <ChevronDown className="h-5 w-5 text-moss" />
+              </motion.div>
+            </button>
+            <AnimatePresence>
+              {songOfDayExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <div className="border-t border-sage/10 px-5 pb-5 pt-3">
+                    <p className="text-base text-forest-dark">
+                      <span className="text-moss">By</span> {songOfDay.artistName}
+                    </p>
+                    {songOfDay.reason ? (
+                      <div className="mt-4 rounded-xl bg-white/60 px-4 py-3 text-sm italic text-forest-dark border border-sage/10">
+                        "{songOfDay.reason}"
+                      </div>
+                    ) : null}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         ) : null}
       </motion.div>
 
@@ -530,42 +581,6 @@ export function FigmaDashboardHome({
           </div>
         </div>
       </motion.div>
-
-      {/* Song of the day */}
-      {songOfDay ? (
-        <motion.div
-          className="relative overflow-hidden rounded-3xl border border-sage/30 bg-gradient-to-br from-forest-dark to-forest p-6 text-mint-light shadow-xl sm:p-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-        >
-          {/* Background glow */}
-          <motion.div
-            className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sage/20 blur-3xl"
-            animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 4, repeat: Infinity }}
-          />
-          <div className="relative z-10">
-            <div className="mb-3 flex items-center gap-2">
-              <Music className="h-5 w-5 text-sage" />
-              <span className="text-xs font-semibold uppercase tracking-widest text-sage">
-                Song of the day
-              </span>
-            </div>
-            <p className="text-2xl font-semibold sm:text-3xl">
-              {songOfDay.trackName}
-            </p>
-            <p className="mt-1 text-base text-mint/80">
-              {songOfDay.artistName}
-            </p>
-            {songOfDay.reason ? (
-              <p className="mt-3 text-sm text-mint/60">
-                {songOfDay.reason}
-              </p>
-            ) : null}
-          </div>
-        </motion.div>
-      ) : null}
 
       {/* Animated status cards */}
       <div className="grid sm:grid-cols-2 gap-4">

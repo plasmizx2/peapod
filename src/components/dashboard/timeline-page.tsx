@@ -55,7 +55,7 @@ function eventDescription(event: TimelineEvent): string {
       return `hosted a session with ${members} ${members === 1 ? "person" : "people"}${status === "ended" ? " (ended)" : ""}`;
     }
     case "song_of_day":
-      return `song of the day: ${event.data.trackName as string} by ${event.data.artistName as string}`;
+      return `was curated a daily pick: ${event.data.trackName as string} by ${event.data.artistName as string}`;
     default:
       return "did something";
   }
@@ -138,6 +138,11 @@ export function TimelinePageClient() {
                       <span className="font-semibold">{event.displayName}</span>{" "}
                       <span className="text-moss">{eventDescription(event)}</span>
                     </p>
+                    {event.type === "song_of_day" && event.data.reason ? (
+                      <p className="mt-1 text-xs italic text-rust/80">
+                        "{event.data.reason as string}"
+                      </p>
+                    ) : null}
                     <p className="mt-0.5 text-xs text-moss/70">
                       {timeAgo(event.timestamp)}
                     </p>
