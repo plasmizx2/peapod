@@ -40,6 +40,15 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     .limit(1);
 
   if (profile) {
+    if (!profile.friendCode) {
+      const code = generateFriendCode();
+      await db
+        .update(userProfiles)
+        .set({ friendCode: code })
+        .where(eq(userProfiles.userId, userId));
+      profile.friendCode = code;
+    }
+
     return {
       ...profile,
       friendCodeUpdatedAt: profile.friendCodeUpdatedAt?.toISOString() ?? null,
