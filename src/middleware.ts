@@ -1,25 +1,29 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 
 /**
  * Unauthenticated visits to /dashboard/* go to /login with callbackUrl set to the
  * full path + query (so Spotify OAuth error params like ?spotify_error=invalid_scope
  * survive the round-trip after sign-in).
+ *
+ * We check cookie presence rather than decrypting the JWT — NextAuth v5 uses JWE
+ * which getToken() can't verify in the Edge without the full auth config. The real
+ * auth check happens per-page via auth(). This just handles the redirect UX.
  */
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (!pathname.startsWith("/dashboard")) {
     return NextResponse.next();
   }
 
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    return NextResponse.next();
-  }
+  const cookies = request.cookies;
+  const hasSession =
+    cookies.has("authjs.session-token") ||
+    cookies.has("__Secure-authjs.session-token") ||
+    cookies.has("next-auth.session-token") ||
+    cookies.has("__Secure-next-auth.session-token");
 
-  const token = await getToken({ req: request, secret });
-  if (token) {
+  if (hasSession) {
     return NextResponse.next();
   }
 
