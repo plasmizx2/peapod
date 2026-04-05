@@ -209,6 +209,8 @@ export async function importSpotifyPlaylistIntoSession(
         const baseJson = (await baseRes.json()) as PlaylistJson;
         url = null; // stop pagination — fallback only gets first page
         const items = baseJson.tracks?.items ?? [];
+        console.error("[playlist-import] fallback items count:", items.length,
+          "sample types:", items.slice(0, 3).map(i => (i.track as (SpotifyTrackPayload & {type?:string})|null)?.type ?? "null-track"));
         for (const it of items) {
           const tr = it.track;
           if (!tr?.id || !tr.name || !tr.artists?.length) continue;
