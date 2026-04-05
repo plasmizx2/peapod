@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { processDriverLogAfterVote } from "@/lib/sessions/driver-save";
 import { upsertSessionVote } from "@/lib/sessions/queue";
+import { autoRebalanceIfParty } from "@/lib/sessions/rebalance";
 
 type RouteContext = {
   params: Promise<{ sessionId: string; queueItemId: string }>;
@@ -54,7 +55,10 @@ export async function POST(req: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid vote" }, { status: 400 });
   }
 
-  await processDriverLogAfterVote(sessionId, queueItemId);
+  await Promise.all([
+    processDriverLogAfterVote(sessionId, queueItemId),
+    autoRebalanceIfParty(sessionId),
+  ]);
 
   return NextResponse.json({ ok: true });
 }

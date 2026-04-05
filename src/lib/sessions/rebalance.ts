@@ -189,3 +189,25 @@ export async function rebalanceSessionQueue(
 
   return { ok: true };
 }
+
+/**
+ * Called after every vote in party (hype) mode to auto-sort the queue.
+ * Skips host ownership check — this is an internal trigger, not a user action.
+ */
+export async function autoRebalanceIfParty(sessionId: string): Promise<void> {
+  const [session] = await db
+    .select({
+      hostUserId: listeningSessions.hostUserId,
+      queueMode: listeningSessions.queueMode,
+      status: listeningSessions.status,
+    })
+    .from(listeningSessions)
+    .where(eq(listeningSessions.id, sessionId))
+    .limit(1);
+
+  if (!session || session.status !== "active" || session.queueMode !== "hype") {
+    return;
+  }
+
+  await rebalanceSessionQueue(sessionId, session.hostUserId);
+}

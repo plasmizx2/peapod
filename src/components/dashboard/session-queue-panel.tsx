@@ -692,9 +692,9 @@ export function SessionQueuePanel({
               <option value="manual">Manual</option>
               <option value="equal_play">Equal play</option>
               <option value="lean_driver">Lean driver</option>
-              <option value="hype">Hype (votes)</option>
+              <option value="hype">Party (vote leaderboard)</option>
             </select>
-            {queueMode !== "manual" ? (
+            {queueMode !== "manual" && queueMode !== "hype" ? (
               <button
                 type="button"
                 disabled={settingsBusy || reorderBusy}
@@ -703,6 +703,11 @@ export function SessionQueuePanel({
               >
                 Rebalance queue
               </button>
+            ) : null}
+            {queueMode === "hype" ? (
+              <span className="text-xs text-moss">
+                Queue re-sorts automatically on every vote.
+              </span>
             ) : null}
           </div>
           {queueMode === "lean_driver" ? (
@@ -1120,6 +1125,100 @@ export function SessionQueuePanel({
       {showSearchAndList ? (
         queue.length === 0 ? (
           <p className="text-sm text-moss">No songs in the queue yet.</p>
+        ) : queueMode === "hype" ? (
+          /* Party leaderboard view — unplayed sorted by votes desc, played at bottom */
+          (() => {
+            const unplayed = [...queue.filter((i) => !i.playedAt)].sort(
+              (a, b) => b.voteTotal - a.voteTotal,
+            );
+            const played = queue.filter((i) => i.playedAt);
+            const allSorted = [...unplayed, ...played];
+            return (
+              <ol className="space-y-2 text-sm text-forest-dark">
+                {allSorted.map((item, index) => {
+                  const rank = index + 1;
+                  const isTop = rank === 1 && !item.playedAt;
+                  return (
+                    <li
+                      key={item.id}
+                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${
+                        item.playedAt
+                          ? "border-forest/5 bg-white/30 opacity-50"
+                          : isTop
+                            ? "border-[#1DB954]/30 bg-[#1DB954]/8 shadow-sm"
+                            : "border-forest/10 bg-white/60"
+                      }`}
+                    >
+                      {/* Rank */}
+                      <span
+                        className={`w-6 shrink-0 text-center text-sm font-bold ${
+                          isTop ? "text-[#1DB954]" : "text-moss"
+                        }`}
+                      >
+                        {item.playedAt ? "✓" : `#${rank}`}
+                      </span>
+                      {/* Track info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium leading-tight">
+                          {item.trackName}
+                        </p>
+                        <p className="truncate text-xs text-moss">
+                          {item.artistName} · {item.addedByDisplayName}
+                          {item.playedAt ? " · Played" : null}
+                        </p>
+                      </div>
+                      {/* Vote count */}
+                      <span
+                        className={`shrink-0 text-base font-bold tabular-nums ${
+                          item.voteTotal > 0
+                            ? "text-[#1DB954]"
+                            : item.voteTotal < 0
+                              ? "text-rust"
+                              : "text-moss"
+                        }`}
+                      >
+                        {item.voteTotal > 0 ? `+${item.voteTotal}` : item.voteTotal}
+                      </span>
+                      {/* Vote buttons */}
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        {sessionActive ? (
+                          <>
+                            <button
+                              type="button"
+                              title="Upvote"
+                              disabled={voteBusy === item.id}
+                              onClick={() => void vote(item.id, item.myVote === 1 ? 0 : 1)}
+                              className={`rounded p-1 ${item.myVote === 1 ? "bg-sage/40 text-forest-dark" : "text-moss hover:bg-sage/20"}`}
+                            >
+                              <ThumbsUp className="h-4 w-4" aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              title="Downvote"
+                              disabled={voteBusy === item.id}
+                              onClick={() => void vote(item.id, item.myVote === -1 ? 0 : -1)}
+                              className={`rounded p-1 ${item.myVote === -1 ? "bg-rust/25 text-forest-dark" : "text-moss hover:bg-rust/15"}`}
+                            >
+                              <ThumbsDown className="h-4 w-4" aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              title="Remove"
+                              disabled={voteBusy === item.id}
+                              onClick={() => void removeItem(item.id)}
+                              className="rounded p-1 text-moss hover:bg-rust/15 hover:text-rust"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            );
+          })()
         ) : (
           <ol className="list-decimal space-y-3 pl-5 text-sm text-forest-dark">
             {queue.map((item, index) => (
