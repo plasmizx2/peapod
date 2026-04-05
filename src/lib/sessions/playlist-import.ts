@@ -35,6 +35,10 @@ type PlaylistTracksJson = {
   next?: string | null;
 };
 
+type PlaylistJson = {
+  tracks?: PlaylistTracksJson;
+};
+
 function interleaveQueueItemIds(a: string[], b: string[]): string[] {
   const out: string[] = [];
   let i = 0;
@@ -183,6 +187,42 @@ export async function importSpotifyPlaylistIntoSession(
       console.error("[playlist-import] Spotify error", status, errBody.slice(0, 500), "url:", url);
       if (status === 404) {
         return { ok: false, reason: "playlist_not_found" };
+      }
+      if (status === 403 && url.includes("/tracks")) {
+        // Spotify blocks /tracks for playlists containing music videos.
+        // Fall back to GET /playlists/{id} which returns the first page inline.
+        const baseUrl = `https://api.spotify.com/v1/playlists/${encodeURIComponent(spotifyPlaylistId)}?fields=tracks(items(track(id,name,artists,album,duration_ms,explicit,type)),next)`;
+        let baseRes: Response;
+        try {
+          baseRes = await spotifyUserGet(importerUserId, baseUrl);
+        } catch (e) {
+          if (e instanceof SpotifyNotLinkedError) return { ok: false, reason: "spotify_not_linked" };
+          if (e instanceof SpotifyTokenError) return { ok: false, reason: "spotify_token" };
+          throw e;
+        }
+        if (!baseRes.ok) {
+          console.error("[playlist-import] fallback also failed", baseRes.status);
+          return { ok: false, reason: "playlist_forbidden" };
+        }
+        const baseJson = (await baseRes.json()) as PlaylistJson;
+        url = null; // stop pagination — fallback only gets first page
+        const items = baseJson.tracks?.items ?? [];
+        for (const it of items) {
+          const tr = it.track;
+          if (!tr?.id || !tr.name || !tr.artists?.length) continue;
+          const t = tr as SpotifyTrackPayload & { type?: string };
+          if (t.type && t.type !== "track") continue;
+          scannedFromPlaylist += 1;
+          if (existingSpotify.has(tr.id) || seenInPlaylist.has(tr.id)) { skippedDuplicates += 1; continue; }
+          seenInPlaylist.add(tr.id);
+          payloads.push(tr);
+          if (payloads.length >= MAX_IMPORT) break;
+        }
+        const fallbackNext = baseJson.tracks?.next;
+        if (typeof fallbackNext === "string" && fallbackNext && payloads.length < MAX_IMPORT) {
+          url = fallbackNext;
+        }
+        continue;
       }
       if (status === 403) {
         return { ok: false, reason: "playlist_forbidden" };
