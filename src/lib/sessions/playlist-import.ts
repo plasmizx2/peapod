@@ -213,7 +213,7 @@ export async function importSpotifyPlaylistIntoSession(
           const tr = it.track;
           if (!tr?.id || !tr.name || !tr.artists?.length) continue;
           const t = tr as SpotifyTrackPayload & { type?: string };
-          if (t.type && t.type !== "track") continue;
+          if (t.type === "episode") continue; // skip podcasts, allow music videos
           scannedFromPlaylist += 1;
           if (existingSpotify.has(tr.id) || seenInPlaylist.has(tr.id)) { skippedDuplicates += 1; continue; }
           seenInPlaylist.add(tr.id);
@@ -240,7 +240,7 @@ export async function importSpotifyPlaylistIntoSession(
       const tr = it.track;
       if (!tr?.id || !tr.name || !tr.artists?.length) continue;
       const t = tr as SpotifyTrackPayload & { type?: string };
-      if (t.type && t.type !== "track") continue;
+      if (t.type === "episode") continue; // skip podcasts, allow music videos
       scannedFromPlaylist += 1;
       if (existingSpotify.has(tr.id)) {
         skippedDuplicates += 1;
