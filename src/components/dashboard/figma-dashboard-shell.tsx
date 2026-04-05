@@ -42,7 +42,7 @@ export function FigmaDashboardShell({
     { path: "/dashboard/friends", label: "Friends", icon: UserPlus },
     { path: "/dashboard/timeline", label: "Timeline", icon: Clock },
     { path: "/dashboard/accounts", label: "Music services", icon: Music },
-    { path: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+    { path: "/dashboard/analytics", label: "Identity", icon: BarChart3 },
     { path: "/dashboard/settings", label: "Settings", icon: Settings },
     ...(isAdminUser
       ? [{ path: "/dashboard/admin", label: "Admin", icon: Shield }]

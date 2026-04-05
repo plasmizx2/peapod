@@ -16,19 +16,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "motion/re
 import { useState } from "react";
 import { MoodChatPanel } from "@/components/dashboard/mood-chat-panel";
 import { SoloPresetPlaylists } from "@/components/dashboard/solo-preset-playlists";
-import type {
-  RecentPlay,
-  TimePatterns,
-  TopArtist,
-  TopTrack,
-} from "@/types/listening";
-import type { PhaseInfo } from "@/lib/data/phase-detection";
-import type { ForgottenTrack } from "@/lib/data/forgotten-tracks";
 import type { SongOfTheDayResult } from "@/lib/data/song-of-the-day";
-
-function formatHourUtcLabel(h: number) {
-  return `${h.toString().padStart(2, "0")}:00 UTC`;
-}
 
 function formatPlayedAt(iso: string) {
   try {
@@ -44,24 +32,10 @@ function formatPlayedAt(iso: string) {
 export function FigmaDashboardHome({
   firstName,
   listeningCount,
-  recentPlays,
-  topTracks,
-  topArtists,
-  timePatterns,
-  vibeLine,
-  phaseInfo,
-  forgottenTracks,
   songOfDay,
 }: {
   firstName: string;
   listeningCount: number;
-  recentPlays: RecentPlay[];
-  topTracks: TopTrack[];
-  topArtists: TopArtist[];
-  timePatterns: TimePatterns | null;
-  vibeLine: string | null;
-  phaseInfo: PhaseInfo | null;
-  forgottenTracks: ForgottenTrack[];
   songOfDay: SongOfTheDayResult | null;
 }) {
   const [chatOpen, setChatOpen] = useState(false);
@@ -132,10 +106,6 @@ export function FigmaDashboardHome({
           </Link>{" "}
           is a shared queue and votes — the host plays Spotify on their device.
         </p>
-        {listeningCount > 0 && vibeLine ? (
-          <p className="mt-3 text-sm text-sage sm:text-base">{vibeLine}</p>
-        ) : null}
-
         {/* Dropdown Song of the day */}
         {songOfDay ? (
           <div className="mt-6 w-full max-w-2xl rounded-2xl border border-sage/20 bg-forest/5 shadow-sm">
@@ -191,270 +161,9 @@ export function FigmaDashboardHome({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h2 className="font-display text-2xl font-semibold text-forest-dark sm:text-3xl">
-            Your listening{" "}
-            <span className="text-lg font-normal text-moss sm:text-xl">
-              (solo)
-            </span>
+          <h2 className="font-display text-2xl font-semibold text-forest-dark sm:text-3xl mt-4">
+            DJ Booth
           </h2>
-
-          {/* Phase detection card */}
-          {phaseInfo ? (
-            <motion.div
-              className="rounded-3xl border border-sage/30 bg-gradient-to-br from-sage/10 to-mint/20 p-6 shadow-md sm:p-8"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="mb-3 flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-sage" aria-hidden />
-                <h3 className="text-lg font-semibold text-forest-dark">
-                  Your current phase
-                </h3>
-              </div>
-              <p className="text-base font-medium text-forest-dark">
-                {phaseInfo.phase}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {phaseInfo.topArtistsRecent.slice(0, 5).map((a) => (
-                  <span
-                    key={a}
-                    className="rounded-full bg-sage/20 px-3 py-1 text-xs font-medium text-forest-dark"
-                  >
-                    {a}
-                  </span>
-                ))}
-              </div>
-              {phaseInfo.similarity < 0.5 ? (
-                <p className="mt-3 text-xs text-moss">
-                  Your recent taste has shifted from your usual patterns —
-                  exploring something new.
-                </p>
-              ) : (
-                <p className="mt-3 text-xs text-moss">
-                  Staying consistent with your core taste.
-                </p>
-              )}
-            </motion.div>
-          ) : null}
-
-          {/* Forgotten favorites card */}
-          {forgottenTracks.length > 0 ? (
-            <motion.div
-              className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <div className="mb-3 flex items-center gap-2">
-                <Clock className="h-5 w-5 text-rust" aria-hidden />
-                <h3 className="text-lg font-semibold text-forest-dark">
-                  Forgotten favorites
-                </h3>
-              </div>
-              <p className="mb-4 text-xs text-moss">
-                Songs you used to love but haven&apos;t played in a while.
-              </p>
-              <ul className="space-y-3">
-                {forgottenTracks.map((t) => (
-                  <li
-                    key={`${t.trackName}-${t.artistName}`}
-                    className="flex items-baseline justify-between gap-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-forest-dark">
-                        {t.trackName}
-                      </p>
-                      <p className="truncate text-xs text-moss">
-                        {t.artistName}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs text-moss">
-                      {t.playCount}× · {t.daysSinceLastListen}d ago
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ) : null}
-
-          {recentPlays.length > 0 ? (
-            <div className="rounded-3xl border border-forest/10 bg-cream p-6 shadow-lg sm:p-8">
-              <div className="mb-4 flex items-center gap-2">
-                <Clock className="h-5 w-5 text-sage" aria-hidden />
-                <h3 className="text-lg font-semibold text-forest-dark">
-                  Recent plays
-                </h3>
-              </div>
-              <ul className="divide-y divide-forest/10">
-                {recentPlays.map((p) => (
-                  <li
-                    key={`${p.listenedAtIso}-${p.trackName}`}
-                    className="flex flex-col gap-1 py-3 first:pt-0 sm:flex-row sm:items-baseline sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-forest-dark">
-                        {p.trackName}
-                      </p>
-                      <p className="text-sm text-moss">
-                        {p.artistName}
-                        {p.albumName ? ` · ${p.albumName}` : null}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-xs text-moss sm:text-sm">
-                      {formatPlayedAt(p.listenedAtIso)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {timePatterns ? (
-            <div className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8">
-              <div className="mb-2 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-sage" aria-hidden />
-                <h3 className="text-lg font-semibold text-forest-dark">
-                  When you listen
-                </h3>
-              </div>
-              <p className="mb-4 text-xs text-moss">
-                Based on stored play times in UTC (not your local timezone).
-              </p>
-              {timePatterns.peakHourUtc !== null ||
-              timePatterns.peakWeekdayDow !== null ? (
-                <p className="mb-4 text-sm text-forest-dark">
-                  {timePatterns.peakHourUtc !== null ? (
-                    <>
-                      Peaks around{" "}
-                      <span className="font-medium">
-                        {formatHourUtcLabel(timePatterns.peakHourUtc)}
-                      </span>
-                    </>
-                  ) : null}
-                  {timePatterns.peakHourUtc !== null &&
-                  timePatterns.peakWeekdayDow !== null
-                    ? " · "
-                    : null}
-                  {timePatterns.peakWeekdayDow !== null ? (
-                    <>
-                      Most plays on{" "}
-                      <span className="font-medium">
-                        {
-                          timePatterns.weekdayUtc[timePatterns.peakWeekdayDow]
-                            ?.label
-                        }
-                      </span>
-                    </>
-                  ) : null}
-                </p>
-              ) : (
-                <p className="mb-4 text-sm text-moss">
-                  Add more plays to see time-of-day and weekday patterns.
-                </p>
-              )}
-              <div className="mb-6 flex h-24 items-end gap-px sm:gap-0.5">
-                {timePatterns.hourlyUtc.map((n, h) => {
-                  const max = Math.max(...timePatterns.hourlyUtc, 1);
-                  const pct = max > 0 ? (n / max) * 100 : 0;
-                  return (
-                    <div
-                      key={h}
-                      className="flex min-w-0 flex-1 flex-col items-center gap-1"
-                      title={`${formatHourUtcLabel(h)}: ${n} plays`}
-                    >
-                      <div
-                        className="w-full min-w-[2px] rounded-t bg-sage/80"
-                        style={{ height: `${Math.max(pct, n > 0 ? 8 : 0)}%` }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-between text-[10px] text-moss sm:text-xs">
-                <span>00 UTC</span>
-                <span>12 UTC</span>
-                <span>23 UTC</span>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {timePatterns.weekdayUtc.map((w) => {
-                  const max = Math.max(
-                    ...timePatterns.weekdayUtc.map((x) => x.count),
-                    1,
-                  );
-                  const pct = max > 0 ? (w.count / max) * 100 : 0;
-                  return (
-                    <div
-                      key={w.dow}
-                      className="flex min-w-[2.5rem] flex-1 flex-col items-center gap-1"
-                    >
-                      <div className="flex h-12 w-full items-end justify-center rounded-md bg-mint/20 px-1">
-                        <div
-                          className="w-full max-w-[1.25rem] rounded-t bg-sage/90"
-                          style={{
-                            height: `${Math.max(pct, w.count > 0 ? 12 : 0)}%`,
-                          }}
-                          title={`${w.label}: ${w.count} plays`}
-                        />
-                      </div>
-                      <span className="text-[10px] font-medium text-moss">
-                        {w.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {topTracks.length > 0 ? (
-              <div className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8">
-                <div className="mb-4 flex items-center gap-2">
-                  <Music className="h-5 w-5 text-[#1DB954]" aria-hidden />
-                  <h3 className="text-lg font-semibold text-forest-dark">
-                    Top songs
-                  </h3>
-                </div>
-                <ol className="list-decimal space-y-3 pl-5 text-moss">
-                  {topTracks.map((t, i) => (
-                    <li key={`top-track-${i}`} className="pl-1">
-                      <span className="font-medium text-forest-dark">
-                        {t.trackName}
-                      </span>
-                      <span className="text-moss"> — {t.artistName}</span>
-                      <span className="ml-2 text-xs text-moss">
-                        ({t.plays}×)
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-
-            {topArtists.length > 0 ? (
-              <div className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8">
-                <div className="mb-4 flex items-center gap-2">
-                  <Mic2 className="h-5 w-5 text-sage" aria-hidden />
-                  <h3 className="text-lg font-semibold text-forest-dark">
-                    Top artists
-                  </h3>
-                </div>
-                <ol className="list-decimal space-y-3 pl-5 text-moss">
-                  {topArtists.map((a, i) => (
-                    <li key={`top-artist-${i}`} className="pl-1">
-                      <span className="font-medium text-forest-dark">
-                        {a.artistName}
-                      </span>
-                      <span className="ml-2 text-xs text-moss">
-                        ({a.plays} plays)
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-          </div>
 
           <SoloPresetPlaylists />
 

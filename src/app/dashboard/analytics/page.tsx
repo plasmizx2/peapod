@@ -1,119 +1,70 @@
 import { redirect } from "next/navigation";
-import {
-  BarChart3,
-  Clock,
-  ListMusic,
-  MessageSquare,
-  Music,
-  Users,
-  Disc3,
-  Settings2,
-} from "lucide-react";
+import { count, eq } from "drizzle-orm";
 import { auth } from "@/auth";
+import { db } from "@/db";
+import { listeningEvents, userPatternProfiles } from "@/db/schema";
 import { getUserAnalytics } from "@/lib/data/analytics";
-
-function modeLabel(mode: string | null): string {
-  if (!mode) return "—";
-  const labels: Record<string, string> = {
-    manual: "Manual",
-    equal_play: "Equal play",
-    lean_driver: "Lean driver",
-    hype: "Party (hype)",
-  };
-  return labels[mode] ?? mode;
-}
+import { VisualIdentityPageClient } from "@/components/dashboard/visual-identity-page";
+import { ensureUserListeningStats } from "@/lib/data/rebuild-user-stats";
+import { getTimePatterns } from "@/lib/data/listening-time-insights";
+import { getTopArtists, getTopTracks } from "@/lib/data/listening-insights";
+import { detectCurrentPhase } from "@/lib/data/phase-detection";
+import { getForgottenFavorites } from "@/lib/data/forgotten-tracks";
+import type { TimePatterns } from "@/types/listening";
 
 export default async function AnalyticsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  const uid = session.user.id;
 
-  const stats = await getUserAnalytics(session.user.id);
+  const [row] = await db
+    .select({ n: count() })
+    .from(listeningEvents)
+    .where(eq(listeningEvents.userId, uid));
+  const listeningCount = Number(row?.n ?? 0);
 
-  const cards = [
-    {
-      icon: <Music className="h-5 w-5" />,
-      label: "Plays synced",
-      value: stats.totalPlaysSynced.toLocaleString(),
-    },
-    {
-      icon: <Users className="h-5 w-5" />,
-      label: "Sessions joined",
-      value: stats.totalSessions,
-    },
-    {
-      icon: <Disc3 className="h-5 w-5" />,
-      label: "Sessions hosted",
-      value: stats.totalSessionsHosted,
-    },
-    {
-      icon: <ListMusic className="h-5 w-5" />,
-      label: "Playlists generated",
-      value: stats.playlistsGenerated,
-    },
-    {
-      icon: <MessageSquare className="h-5 w-5" />,
-      label: "Mood prompts",
-      value: stats.chatbotPromptsUsed,
-    },
-    {
-      icon: <BarChart3 className="h-5 w-5" />,
-      label: "Sync jobs",
-      value: stats.totalSyncJobs,
-    },
-    {
-      icon: <Clock className="h-5 w-5" />,
-      label: "Avg session",
-      value: stats.avgSessionDurationMins
-        ? `${stats.avgSessionDurationMins} min`
-        : "—",
-    },
-    {
-      icon: <Users className="h-5 w-5" />,
-      label: "Avg group size",
-      value: stats.avgSessionMembers ?? "—",
-    },
-    {
-      icon: <Settings2 className="h-5 w-5" />,
-      label: "Fav queue mode",
-      value: modeLabel(stats.mostUsedQueueMode),
-    },
-    {
-      icon: <ListMusic className="h-5 w-5" />,
-      label: "Tracks queued",
-      value: stats.totalTracksQueued.toLocaleString(),
-    },
-  ];
+  const analyticsStats = await getUserAnalytics(uid);
+
+  let topTracks: Awaited<ReturnType<typeof getTopTracks>> = [];
+  let topArtists: Awaited<ReturnType<typeof getTopArtists>> = [];
+  let timePatterns: TimePatterns | null = null;
+  let vibeLine: string | null = null;
+  let phaseInfo: Awaited<ReturnType<typeof detectCurrentPhase>> = null;
+  let forgottenTracks: Awaited<ReturnType<typeof getForgottenFavorites>> = [];
+
+  if (listeningCount > 0) {
+    await ensureUserListeningStats(uid);
+    const [profile] = await db
+      .select({ vibeLine: userPatternProfiles.vibeLine })
+      .from(userPatternProfiles)
+      .where(eq(userPatternProfiles.userId, uid))
+      .limit(1);
+    vibeLine = profile?.vibeLine ?? null;
+
+    [topTracks, topArtists, timePatterns] = await Promise.all([
+      getTopTracks(uid, 5),
+      getTopArtists(uid, 5),
+      getTimePatterns(uid),
+    ]);
+
+    if (listeningCount >= 50) {
+      [phaseInfo, forgottenTracks] = await Promise.all([
+        detectCurrentPhase(uid),
+        getForgottenFavorites(uid, 5),
+      ]);
+    }
+  }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-semibold text-forest-dark">
-          Analytics
-        </h1>
-        <p className="mt-2 max-w-xl text-moss">
-          Your aggregate PeaPod stats — counts only, no raw listening content
-          stored here.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {cards.map((card) => (
-          <div
-            key={card.label}
-            className="rounded-2xl border border-forest/10 bg-cream p-5 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="mb-2 flex items-center gap-2 text-sage">
-              {card.icon}
-              <span className="text-xs font-medium text-moss">
-                {card.label}
-              </span>
-            </div>
-            <p className="text-2xl font-bold tabular-nums text-forest-dark">
-              {card.value}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
+    <VisualIdentityPageClient
+      listeningCount={listeningCount}
+      vibeLine={vibeLine}
+      phaseInfo={phaseInfo}
+      timePatterns={timePatterns}
+      topTracks={topTracks}
+      topArtists={topArtists}
+      forgottenTracks={forgottenTracks}
+      analyticsStats={analyticsStats}
+    />
   );
 }
