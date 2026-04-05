@@ -432,9 +432,19 @@ export function SessionLobbyPage() {
               {!sessionEnded ? <SpotifyLinkHint /> : null}
 
               {sessionEnded ? (
-                <p className="mb-4 text-sm text-moss">
-                  This session has ended. You can leave when you&apos;re done.
-                </p>
+                <div className="mb-4 space-y-3">
+                  <p className="text-sm text-moss">
+                    This session has ended. You can leave when you&apos;re done.
+                  </p>
+                  {activeId ? (
+                    <Link
+                      href={`/dashboard/sessions/${activeId}/recap`}
+                      className="inline-flex items-center gap-1.5 rounded-2xl bg-forest px-4 py-2 text-sm font-semibold text-mint-light shadow transition hover:bg-forest-dark"
+                    >
+                      View recap →
+                    </Link>
+                  ) : null}
+                </div>
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
