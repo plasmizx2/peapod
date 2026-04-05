@@ -166,7 +166,7 @@ export async function importSpotifyPlaylistIntoSession(
   const seenInPlaylist = new Set<string>();
 
   let url: string | null =
-    `https://api.spotify.com/v1/playlists/${encodeURIComponent(spotifyPlaylistId)}/tracks?limit=100`;
+    `https://api.spotify.com/v1/playlists/${encodeURIComponent(spotifyPlaylistId)}/tracks?limit=100&market=from_token`;
 
   while (url && payloads.length < MAX_IMPORT) {
     let res: Response;
@@ -191,7 +191,7 @@ export async function importSpotifyPlaylistIntoSession(
       if (status === 403 && url.includes("/tracks")) {
         // Spotify blocks /tracks for playlists containing music videos.
         // Fall back to GET /playlists/{id} which embeds first 100 tracks inline.
-        const baseUrl = `https://api.spotify.com/v1/playlists/${spotifyPlaylistId}`;
+        const baseUrl = `https://api.spotify.com/v1/playlists/${spotifyPlaylistId}?market=from_token`;
         console.error("[playlist-import] /tracks blocked, trying fallback:", baseUrl);
         let baseRes: Response;
         try {
