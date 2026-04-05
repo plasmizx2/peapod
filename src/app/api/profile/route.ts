@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getUserProfile, updateUserProfile } from "@/lib/data/profile";
+import {
+  getUserProfile,
+  updateUserProfile,
+  isFriendCodeAvailable,
+} from "@/lib/data/profile";
 
 /** GET — fetch the current user's profile. */
 export async function GET() {
@@ -24,6 +28,8 @@ export async function PATCH(req: NextRequest) {
     "displayName",
     "bio",
     "avatarUrl",
+    "friendCode",
+    "phoneNumber",
     "listeningVisibility",
     "sessionHistoryVisible",
   ];
@@ -37,6 +43,30 @@ export async function PATCH(req: NextRequest) {
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No valid fields provided" }, { status: 400 });
+  }
+
+  // Validate friend code uniqueness if being changed
+  if (data.friendCode && typeof data.friendCode === "string") {
+    const code = (data.friendCode as string).toUpperCase().trim();
+    if (code.length < 3 || code.length > 16) {
+      return NextResponse.json(
+        { error: "Friend code must be 3-16 characters" },
+        { status: 400 },
+      );
+    }
+    if (!/^[A-Z0-9_]+$/.test(code)) {
+      return NextResponse.json(
+        { error: "Friend code can only contain letters, numbers, and underscores" },
+        { status: 400 },
+      );
+    }
+    const available = await isFriendCodeAvailable(code, session.user.id);
+    if (!available) {
+      return NextResponse.json(
+        { error: "That friend code is already taken" },
+        { status: 409 },
+      );
+    }
   }
 
   const profile = await updateUserProfile(session.user.id, data as Parameters<typeof updateUserProfile>[1]);

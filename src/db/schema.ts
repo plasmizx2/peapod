@@ -401,20 +401,29 @@ export const sessionVetoes = pgTable(
   ],
 );
 
-/** User profile — display name, bio, avatar, privacy. */
-export const userProfiles = pgTable("user_profiles", {
-  userId: uuid("user_id")
-    .primaryKey()
-    .references(() => users.id, { onDelete: "cascade" }),
-  displayName: text("display_name"),
-  bio: text("bio"),
-  avatarUrl: text("avatar_url"),
-  /** public | friends_only | private */
-  listeningVisibility: text("listening_visibility").notNull().default("friends_only"),
-  /** Whether this user's session history is visible to friends */
-  sessionHistoryVisible: boolean("session_history_visible").notNull().default(true),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
+/** User profile — display name, bio, avatar, privacy, friend code. */
+export const userProfiles = pgTable(
+  "user_profiles",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    displayName: text("display_name"),
+    bio: text("bio"),
+    avatarUrl: text("avatar_url"),
+    /** Unique friend code for discovery (auto-generated, customizable) */
+    friendCode: text("friend_code"),
+    phoneNumber: text("phone_number"),
+    /** public | friends_only | private */
+    listeningVisibility: text("listening_visibility").notNull().default("friends_only"),
+    /** Whether this user's session history is visible to friends */
+    sessionHistoryVisible: boolean("session_history_visible").notNull().default(true),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("user_profiles_friend_code_idx").on(t.friendCode),
+  ],
+);
 
 /** Friendships — bidirectional with pending/accepted status. */
 export const friendships = pgTable(

@@ -11,6 +11,9 @@ import {
   Save,
   Loader2,
   Check,
+  Copy,
+  Hash,
+  Phone,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -18,6 +21,8 @@ type Profile = {
   displayName: string | null;
   bio: string | null;
   avatarUrl: string | null;
+  friendCode: string | null;
+  phoneNumber: string | null;
   listeningVisibility: string;
   sessionHistoryVisible: boolean;
 };
@@ -34,8 +39,12 @@ export function FigmaSettingsPage() {
   const [saved, setSaved] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [friendCode, setFriendCode] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [listeningVisibility, setListeningVisibility] = useState("friends_only");
   const [sessionHistoryVisible, setSessionHistoryVisible] = useState(true);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/profile")
@@ -43,6 +52,8 @@ export function FigmaSettingsPage() {
       .then((data: Profile) => {
         setDisplayName(data.displayName ?? "");
         setBio(data.bio ?? "");
+        setFriendCode(data.friendCode ?? "");
+        setPhoneNumber(data.phoneNumber ?? "");
         setListeningVisibility(data.listeningVisibility);
         setSessionHistoryVisible(data.sessionHistoryVisible);
       })
@@ -52,17 +63,27 @@ export function FigmaSettingsPage() {
   async function saveProfile() {
     setSaving(true);
     setSaved(false);
+    setSaveError(null);
     try {
-      await fetch("/api/profile", {
+      const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           displayName: displayName.trim() || null,
           bio: bio.trim() || null,
+          friendCode: friendCode.trim() || undefined,
+          phoneNumber: phoneNumber.trim() || null,
           listeningVisibility,
           sessionHistoryVisible,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json();
+        setSaveError(data.error ?? "Failed to save");
+        return;
+      }
+      const updated = await res.json() as Profile;
+      setFriendCode(updated.friendCode ?? friendCode);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } finally {
@@ -143,6 +164,68 @@ export function FigmaSettingsPage() {
             <p className="mt-1 text-right text-xs text-moss">
               {bio.length}/160
             </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="friend-code"
+              className="mb-1.5 block text-sm font-medium text-forest-dark"
+            >
+              Friend code
+            </label>
+            <p className="mb-2 text-xs text-moss">
+              Others can add you with this code. Customize it if you want.
+            </p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-moss/50" />
+                <input
+                  id="friend-code"
+                  type="text"
+                  value={friendCode}
+                  onChange={(e) => setFriendCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))}
+                  placeholder="AUTO-GENERATED"
+                  maxLength={16}
+                  className="w-full rounded-xl border border-forest/15 bg-white py-3 pl-10 pr-4 font-mono tracking-widest text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(friendCode);
+                  setCodeCopied(true);
+                  setTimeout(() => setCodeCopied(false), 2000);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-forest/15 bg-white px-4 py-3 text-sm font-medium text-forest-dark hover:bg-mint/20"
+              >
+                {codeCopied ? <Check className="h-4 w-4 text-[#1DB954]" /> : <Copy className="h-4 w-4" />}
+                {codeCopied ? "Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="phone-number"
+              className="mb-1.5 block text-sm font-medium text-forest-dark"
+            >
+              Phone number
+              <span className="ml-1 text-xs font-normal text-moss">(optional)</span>
+            </label>
+            <p className="mb-2 text-xs text-moss">
+              Friends can find you by phone. Only used for friend discovery.
+            </p>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-moss/50" />
+              <input
+                id="phone-number"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+1 555 123 4567"
+                className="w-full rounded-xl border border-forest/15 bg-white py-3 pl-10 pr-4 text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
+              />
+            </div>
           </div>
         </div>
       </motion.div>
@@ -242,6 +325,9 @@ export function FigmaSettingsPage() {
           )}
           {saving ? "Saving..." : saved ? "Saved!" : "Save changes"}
         </button>
+        {saveError ? (
+          <p className="mt-3 text-sm text-rust">{saveError}</p>
+        ) : null}
       </motion.div>
 
       {/* Coming soon */}

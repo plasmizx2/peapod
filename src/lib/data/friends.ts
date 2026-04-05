@@ -84,24 +84,50 @@ export async function getFriends(userId: string): Promise<FriendRow[]> {
 }
 
 /**
- * Send a friend request by email.
+ * Send a friend request by email, friend code, or phone number.
+ * Auto-detects the lookup type from the input.
  */
 export async function sendFriendRequest(
   requesterId: string,
-  addresseeEmail: string,
+  query: string,
 ): Promise<
   | { ok: true; friendshipId: string }
   | { ok: false; reason: "not_found" | "self" | "already_exists" }
 > {
-  // Find the addressee
-  const [addressee] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, addresseeEmail.toLowerCase().trim()))
-    .limit(1);
+  const q = query.trim();
+  let addresseeId: string | null = null;
 
-  if (!addressee) return { ok: false, reason: "not_found" };
-  if (addressee.id === requesterId) return { ok: false, reason: "self" };
+  // Detect lookup type
+  if (q.includes("@")) {
+    // Email lookup
+    const [user] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, q.toLowerCase()))
+      .limit(1);
+    addresseeId = user?.id ?? null;
+  } else if (/^\+?\d[\d\s\-()]{6,}$/.test(q)) {
+    // Phone number lookup — strip non-digits for matching
+    const digits = q.replace(/\D/g, "");
+    const allProfiles = await db
+      .select({ userId: userProfiles.userId, phone: userProfiles.phoneNumber })
+      .from(userProfiles);
+    const match = allProfiles.find(
+      (p) => p.phone && p.phone.replace(/\D/g, "") === digits,
+    );
+    addresseeId = match?.userId ?? null;
+  } else {
+    // Friend code lookup
+    const [profile] = await db
+      .select({ userId: userProfiles.userId })
+      .from(userProfiles)
+      .where(eq(userProfiles.friendCode, q.toUpperCase()))
+      .limit(1);
+    addresseeId = profile?.userId ?? null;
+  }
+
+  if (!addresseeId) return { ok: false, reason: "not_found" };
+  if (addresseeId === requesterId) return { ok: false, reason: "self" };
 
   // Check if friendship already exists (either direction)
   const [existing] = await db
@@ -111,10 +137,10 @@ export async function sendFriendRequest(
       or(
         and(
           eq(friendships.requesterId, requesterId),
-          eq(friendships.addresseeId, addressee.id),
+          eq(friendships.addresseeId, addresseeId),
         ),
         and(
-          eq(friendships.requesterId, addressee.id),
+          eq(friendships.requesterId, addresseeId),
           eq(friendships.addresseeId, requesterId),
         ),
       ),
@@ -127,7 +153,7 @@ export async function sendFriendRequest(
     .insert(friendships)
     .values({
       requesterId,
-      addresseeId: addressee.id,
+      addresseeId,
       status: "pending",
     })
     .returning({ id: friendships.id });

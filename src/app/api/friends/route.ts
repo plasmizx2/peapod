@@ -17,7 +17,7 @@ export async function GET() {
   return NextResponse.json({ friends });
 }
 
-/** POST — send a friend request by email. */
+/** POST — send a friend request by email, friend code, or phone number. */
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -25,15 +25,18 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const email = body?.email;
-  if (!email || typeof email !== "string") {
-    return NextResponse.json({ error: "Email required" }, { status: 400 });
+  const query = body?.query || body?.email; // accept either field
+  if (!query || typeof query !== "string") {
+    return NextResponse.json(
+      { error: "Enter an email, friend code, or phone number" },
+      { status: 400 },
+    );
   }
 
-  const result = await sendFriendRequest(session.user.id, email);
+  const result = await sendFriendRequest(session.user.id, query);
   if (!result.ok) {
     const messages: Record<string, string> = {
-      not_found: "No user found with that email.",
+      not_found: "No user found with that email, code, or phone number.",
       self: "You can't add yourself.",
       already_exists: "Friend request already exists.",
     };

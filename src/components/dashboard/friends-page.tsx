@@ -5,7 +5,7 @@ import {
   Check,
   Clock,
   Loader2,
-  Mail,
+  Search,
   UserCheck,
   UserMinus,
   UserPlus,
@@ -28,7 +28,7 @@ type Friend = {
 export function FriendsPageClient() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState("");
+  const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
@@ -46,19 +46,19 @@ export function FriendsPageClient() {
   useEffect(() => { void load(); }, [load]);
 
   const sendRequest = async () => {
-    if (!email.trim()) return;
+    if (!query.trim()) return;
     setSending(true);
     setSendResult(null);
     try {
       const res = await fetch("/api/friends", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ query: query.trim() }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
         setSendResult({ ok: true, msg: "Request sent!" });
-        setEmail("");
+        setQuery("");
         void load();
       } else {
         setSendResult({ ok: false, msg: data.error ?? "Something went wrong" });
@@ -133,19 +133,19 @@ export function FriendsPageClient() {
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-moss/50" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-moss/50" />
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void sendRequest()}
-              placeholder="friend@email.com"
+              placeholder="Email, friend code, or phone number"
               className="w-full rounded-xl border border-forest/15 bg-white py-3 pl-10 pr-4 text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
             />
           </div>
           <button
             type="button"
-            disabled={sending || !email.trim()}
+            disabled={sending || !query.trim()}
             onClick={() => void sendRequest()}
             className="inline-flex items-center gap-2 rounded-xl bg-forest px-5 py-3 font-medium text-mint-light transition-all hover:bg-forest-dark disabled:opacity-50"
           >
