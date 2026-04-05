@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 
 type TimelineEvent = {
   id: string;
@@ -135,7 +136,12 @@ export function TimelinePageClient() {
                   {/* Content */}
                   <div className="min-w-0 flex-1 pt-1">
                     <p className="text-sm text-forest-dark">
-                      <span className="font-semibold">{event.displayName}</span>{" "}
+                      <Link
+                        href={`/dashboard/friends/${event.userId}`}
+                        className="font-semibold decoration-sage/40 underline-offset-2 hover:text-sage hover:underline"
+                      >
+                        {event.displayName}
+                      </Link>{" "}
                       <span className="text-moss">{eventDescription(event)}</span>
                     </p>
                     {event.type === "song_of_day" && event.data.reason ? (

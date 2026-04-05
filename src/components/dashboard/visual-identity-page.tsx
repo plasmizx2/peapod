@@ -57,6 +57,7 @@ export function VisualIdentityPageClient({
   topArtists,
   forgottenTracks,
   analyticsStats,
+  userFirstName,
 }: {
   listeningCount: number;
   vibeLine: string | null;
@@ -66,6 +67,7 @@ export function VisualIdentityPageClient({
   topArtists: TopArtist[];
   forgottenTracks: ForgottenTrack[];
   analyticsStats: any;
+  userFirstName?: string;
 }) {
   const chartData = timePatterns?.hourlyUtc.map((count, hour) => ({
     hour: formatHourUtcLabel(hour),
@@ -77,6 +79,9 @@ export function VisualIdentityPageClient({
     plays: d.count,
   })) || [];
 
+  const titlePrefix = userFirstName ? `${userFirstName}'s` : "Visual";
+  const descPrefix = userFirstName ? `${userFirstName}'s` : "Your";
+
   return (
     <div className="space-y-8 sm:space-y-12 pb-12">
       {/* Header section */}
@@ -86,10 +91,10 @@ export function VisualIdentityPageClient({
         transition={{ duration: 0.6 }}
       >
         <h1 className="font-display text-4xl font-semibold text-forest-dark sm:text-5xl">
-          Visual Identity
+          {titlePrefix} Identity
         </h1>
         <p className="mt-2 max-w-xl text-base text-moss">
-          Your personal music DNA. Everything gathered from your listening patterns, beautifully visualized.
+          {descPrefix} personal music DNA. Everything gathered from listening patterns, beautifully visualized.
         </p>
       </motion.div>
 
@@ -110,7 +115,7 @@ export function VisualIdentityPageClient({
             {phaseInfo?.phase || "Exploring new sounds"}
           </h2>
           <p className="max-w-2xl text-lg text-mint/80 sm:text-xl">
-            {vibeLine || "Keep listening to establish your signature vibe."}
+            {vibeLine || "Not enough data to establish a signature vibe yet."}
           </p>
           
           {phaseInfo && phaseInfo.topArtistsRecent.length > 0 && (
@@ -214,7 +219,7 @@ export function VisualIdentityPageClient({
               <div className="mb-6 flex items-center gap-2">
                 <Music className="h-6 w-6 text-[#1DB954]" aria-hidden />
                 <h3 className="font-display text-2xl font-semibold text-forest-dark">
-                  Your Heavy Rotation
+                  {userFirstName ? `${userFirstName}'s` : "Your"} Heavy Rotation
                 </h3>
               </div>
               {topTracks.length > 0 ? (
