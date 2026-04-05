@@ -17,11 +17,11 @@ export async function GET(req: Request) {
   }
 
   if (
-    !rateLimit(
+    !(await rateLimit(
       `spotify-search:${session.user.id}`,
       SEARCH_MAX_PER_WINDOW,
       SEARCH_WINDOW_MS,
-    )
+    ))
   ) {
     return NextResponse.json(
       { error: "Too many searches — try again in a minute." },

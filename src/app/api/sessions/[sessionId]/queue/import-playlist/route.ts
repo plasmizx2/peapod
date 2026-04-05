@@ -19,7 +19,7 @@ export async function POST(req: Request, context: RouteContext) {
     return NextResponse.json({ error: "Missing session id" }, { status: 400 });
   }
 
-  if (!rateLimit(`playlist-import:${session.user.id}`, 8, 3_600_000)) {
+  if (!(await rateLimit(`playlist-import:${session.user.id}`, 8, 3_600_000))) {
     return NextResponse.json(
       { error: "Playlist import limit reached — try again in a while." },
       { status: 429 },

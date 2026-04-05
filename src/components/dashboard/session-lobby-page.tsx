@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Copy, Loader2, Radio, Users } from "lucide-react";
+import { Copy, Crown, Loader2, Radio, Users } from "lucide-react";
 import {
   SessionQueuePanel,
   type QueueItem,
@@ -57,6 +57,8 @@ export function SessionLobbyPage() {
   const [siteOrigin, setSiteOrigin] = useState("");
   const [sessionTab, setSessionTab] = useState<SessionTab>("overview");
   const [copiedHint, setCopiedHint] = useState<string | null>(null);
+  const [hostToast, setHostToast] = useState(false);
+  const prevIsHost = useRef<boolean | null>(null);
 
   const activeId = sessionFromUrl;
 
@@ -69,6 +71,27 @@ export function SessionLobbyPage() {
       setSessionTab("overview");
     }
   }, [activeId]);
+
+  // Toast when the user gets promoted to host mid-session.
+  useEffect(() => {
+    const isHost = lobby?.isHost ?? null;
+    if (prevIsHost.current === false && isHost === true) {
+      setHostToast(true);
+      const t = window.setTimeout(() => setHostToast(false), 5000);
+      return () => window.clearTimeout(t);
+    }
+    prevIsHost.current = isHost;
+  }, [lobby?.isHost]);
+
+  // Auto-leave when the host closes the tab so the session hands off cleanly.
+  useEffect(() => {
+    if (!activeId || !lobby?.isHost) return;
+    const handlePageHide = () => {
+      navigator.sendBeacon(`/api/sessions/${activeId}/leave`);
+    };
+    window.addEventListener("pagehide", handlePageHide);
+    return () => window.removeEventListener("pagehide", handlePageHide);
+  }, [activeId, lobby?.isHost]);
 
   const copyToClipboard = useCallback((kind: string, text: string) => {
     void navigator.clipboard.writeText(text).then(() => {
@@ -196,7 +219,7 @@ export function SessionLobbyPage() {
                 nowPlaying?: NowPlayingSlim | null;
               };
           if (data.type === "gone") {
-            setError("You’re not in this session anymore.");
+            setError("This session has ended or you were removed.");
             setLobby(null);
             es?.close();
             return;
@@ -337,6 +360,14 @@ export function SessionLobbyPage() {
           has your solo stats.
         </p>
       </div>
+
+      {/* Host promotion toast */}
+      {hostToast ? (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl bg-forest px-5 py-3 text-sm font-semibold text-mint-light shadow-xl">
+          <Crown className="h-4 w-4 shrink-0" aria-hidden />
+          You&apos;re now the host
+        </div>
+      ) : null}
 
       {!activeId ? (
         <div className="grid gap-6 sm:grid-cols-2">

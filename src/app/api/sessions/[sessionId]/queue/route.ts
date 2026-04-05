@@ -63,7 +63,7 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   if (
-    !rateLimit(`queue-add:${session.user.id}:${sessionId}`, 45, 60_000)
+    !(await rateLimit(`queue-add:${session.user.id}:${sessionId}`, 45, 60_000))
   ) {
     return NextResponse.json(
       { error: "Too many tracks added — wait a moment." },

@@ -1,4 +1,5 @@
 import {
+  boolean,
   doublePrecision,
   index,
   integer,
@@ -18,6 +19,8 @@ export const users = pgTable("users", {
   name: text("name"),
   image: text("image"),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
+  /** False until the user completes the welcome/onboarding flow. */
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

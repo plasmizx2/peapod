@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Lint, typecheck & build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          # Provide stubs so Next.js doesn't abort the build on missing env vars.
+          # Real secrets live in Render; these are only needed for the build step.
+          DATABASE_URL: postgresql://stub:stub@localhost:5432/stub
+          AUTH_SECRET: ci-stub-secret-32-chars-long-ok!!
+          NEXTAUTH_URL: https://example.com
+          UPSTASH_REDIS_REST_URL: https://stub.upstash.io
+          UPSTASH_REDIS_REST_TOKEN: stub
