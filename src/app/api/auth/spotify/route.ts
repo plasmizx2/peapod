@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { oauthAppOrigin } from "@/lib/oauth/app-origin";
 import { SPOTIFY_SCOPES } from "@/lib/providers/spotify/constants";
-
-function appOrigin(request: Request) {
-  const env = process.env.NEXT_PUBLIC_SITE_URL;
-  if (env) return env.replace(/\/$/, "");
-  return new URL(request.url).origin;
-}
 
 export async function GET(request: Request) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const session = await auth();
 
   if (!session?.user) {
-    return NextResponse.redirect(new URL("/login", appOrigin(request)));
+    return NextResponse.redirect(new URL("/login", oauthAppOrigin(request)));
   }
 
   if (!clientId) {
@@ -23,7 +18,13 @@ export async function GET(request: Request) {
     );
   }
 
-  const origin = appOrigin(request);
+  const { searchParams: qs } = new URL(request.url);
+  const forceConsent =
+    qs.get("reconnect") === "1" ||
+    qs.get("show_dialog") === "true" ||
+    qs.get("show_dialog") === "1";
+
+  const origin = oauthAppOrigin(request);
   const redirectUri = `${origin}/api/auth/spotify/callback`;
   const state = crypto.randomUUID();
 
@@ -33,7 +34,8 @@ export async function GET(request: Request) {
     redirect_uri: redirectUri,
     scope: SPOTIFY_SCOPES,
     state,
-    show_dialog: "false",
+    /** Forces approval screen so new scopes (e.g. playlist-read-collaborative) take effect. */
+    show_dialog: forceConsent ? "true" : "false",
   });
 
   const url = `https://accounts.spotify.com/authorize?${params.toString()}`;

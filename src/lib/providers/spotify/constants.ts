@@ -4,9 +4,10 @@ export const SPOTIFY_SCOPES = [
   "user-read-private",
   "user-read-recently-played",
   "user-read-playback-state",
-  "user-modify-playback",
+  "user-modify-playback-state",
   "user-top-read",
   "playlist-read-private",
+  "playlist-read-collaborative",
   "playlist-modify-public",
   "playlist-modify-private",
 ].join(" ");

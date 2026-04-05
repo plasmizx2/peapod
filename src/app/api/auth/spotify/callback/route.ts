@@ -7,12 +7,12 @@ import {
   providerAccounts,
   providerOauthCredentials,
 } from "@/db/schema";
-
-function appOrigin(request: Request) {
-  const env = process.env.NEXT_PUBLIC_SITE_URL;
-  if (env) return env.replace(/\/$/, "");
-  return new URL(request.url).origin;
-}
+import { oauthAppOrigin } from "@/lib/oauth/app-origin";
+import {
+  applySpotifyOauthFlash,
+  redirectToAccountsSpotifyError,
+  SPOTIFY_OAUTH_FLASH,
+} from "@/lib/oauth/spotify-flash";
 
 type SpotifyTokenResponse = {
   access_token: string;
@@ -27,41 +27,47 @@ type SpotifyUser = {
 };
 
 export async function GET(request: Request) {
-  const origin = appOrigin(request);
-  const accountsUrl = new URL("/dashboard/accounts", origin);
+  const origin = oauthAppOrigin(request);
 
   const { searchParams } = new URL(request.url);
-  const error = searchParams.get("error");
-  const code = searchParams.get("code");
+  const oauthError = searchParams.get("error");
+  const authCode = searchParams.get("code");
   const state = searchParams.get("state");
 
-  if (error) {
-    accountsUrl.searchParams.set("spotify_error", error);
-    return NextResponse.redirect(accountsUrl);
+  if (oauthError) {
+    const errDesc = searchParams.get("error_description")?.slice(0, 600);
+    return redirectToAccountsSpotifyError(origin, {
+      code: oauthError,
+      desc: errDesc,
+    });
   }
 
   const cookieStore = await cookies();
   const stored = cookieStore.get("pp_spotify_oauth_state")?.value;
   if (!state || !stored || state !== stored) {
-    accountsUrl.searchParams.set("spotify_error", "invalid_state");
-    return NextResponse.redirect(accountsUrl);
+    return redirectToAccountsSpotifyError(origin, { code: "invalid_state" });
   }
 
-  if (!code) {
-    accountsUrl.searchParams.set("spotify_error", "missing_code");
-    return NextResponse.redirect(accountsUrl);
+  if (!authCode) {
+    return redirectToAccountsSpotifyError(origin, { code: "missing_code" });
   }
 
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    accountsUrl.searchParams.set("spotify_error", "server_config");
-    return NextResponse.redirect(accountsUrl);
+    return redirectToAccountsSpotifyError(origin, { code: "server_config" });
   }
 
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.redirect(new URL("/login", origin));
+    const login = new URL("/login", origin);
+    login.searchParams.set(
+      "callbackUrl",
+      "/dashboard/accounts?spotify_error=session_expired",
+    );
+    const res = NextResponse.redirect(login);
+    applySpotifyOauthFlash(res, { code: "session_expired" });
+    return res;
   }
 
   const redirectUri = `${origin}/api/auth/spotify/callback`;
@@ -75,7 +81,7 @@ export async function GET(request: Request) {
     },
     body: new URLSearchParams({
       grant_type: "authorization_code",
-      code,
+      code: authCode,
       redirect_uri: redirectUri,
     }),
   });
@@ -87,8 +93,32 @@ export async function GET(request: Request) {
       tokenRes.status,
       errBody.slice(0, 800),
     );
-    accountsUrl.searchParams.set("spotify_error", "token_exchange");
-    return NextResponse.redirect(accountsUrl);
+    let errCode = "token_exchange";
+    let errDesc: string | undefined;
+    try {
+      const j = JSON.parse(errBody) as {
+        error?: string;
+        error_description?: string;
+      };
+      if (j.error === "invalid_grant") {
+        errCode = "invalid_grant";
+      } else if (j.error === "invalid_client") {
+        errCode = "invalid_client";
+      } else if (j.error === "invalid_redirect_uri") {
+        errCode = "invalid_redirect_uri";
+      } else if (j.error) {
+        errCode = j.error;
+      }
+      if (j.error_description) {
+        errDesc = j.error_description.slice(0, 600);
+      }
+    } catch {
+      /* keep defaults */
+    }
+    return redirectToAccountsSpotifyError(origin, {
+      code: errCode,
+      desc: errDesc,
+    });
   }
 
   const tokens = (await tokenRes.json()) as SpotifyTokenResponse;
@@ -103,9 +133,10 @@ export async function GET(request: Request) {
       meRes.status,
       errBody.slice(0, 800),
     );
-    accountsUrl.searchParams.set("spotify_error", "profile_fetch");
-    accountsUrl.searchParams.set("spotify_http", String(meRes.status));
-    return NextResponse.redirect(accountsUrl);
+    return redirectToAccountsSpotifyError(origin, {
+      code: "profile_fetch",
+      http: String(meRes.status),
+    });
   }
 
   const spotifyUser = (await meRes.json()) as SpotifyUser;
@@ -132,8 +163,7 @@ export async function GET(request: Request) {
     .returning({ id: providerAccounts.id });
 
   if (!account) {
-    accountsUrl.searchParams.set("spotify_error", "db_upsert");
-    return NextResponse.redirect(accountsUrl);
+    return redirectToAccountsSpotifyError(origin, { code: "db_upsert" });
   }
 
   let refreshToken = tokens.refresh_token ?? null;
@@ -165,13 +195,13 @@ export async function GET(request: Request) {
         },
       });
   } catch {
-    accountsUrl.searchParams.set("spotify_error", "credentials");
-    return NextResponse.redirect(accountsUrl);
+    return redirectToAccountsSpotifyError(origin, { code: "credentials" });
   }
 
   const successUrl = new URL("/dashboard/accounts", origin);
   successUrl.searchParams.set("spotify", "connected");
   const res = NextResponse.redirect(successUrl);
   res.cookies.set("pp_spotify_oauth_state", "", { maxAge: 0, path: "/" });
+  res.cookies.set(SPOTIFY_OAUTH_FLASH, "", { maxAge: 0, path: "/" });
   return res;
 }

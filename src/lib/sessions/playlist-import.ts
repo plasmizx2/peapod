@@ -8,15 +8,21 @@ import {
 } from "@/db/schema";
 import type { SpotifyTrackPayload } from "@/lib/spotify/catalog-track";
 import { upsertCatalogTrack } from "@/lib/spotify/catalog-track";
+import {
+  SpotifyNotLinkedError,
+  SpotifyTokenError,
+} from "@/lib/spotify/access-token";
 import { spotifyUserGet } from "@/lib/spotify/user-api";
 
 const MAX_IMPORT = 200;
 
-/** Extract Spotify playlist id from URL or raw id. */
+/** Extract Spotify playlist id from URL, spotify: URI, or raw id. */
 export function parseSpotifyPlaylistId(input: string): string | null {
   const t = input.trim();
   if (!t) return null;
-  const fromUrl = t.match(/playlist\/([a-zA-Z0-9]+)/);
+  const fromUri = t.match(/spotify:playlist:([a-zA-Z0-9]+)/i);
+  if (fromUri?.[1]) return fromUri[1];
+  const fromUrl = t.match(/\/playlist\/([a-zA-Z0-9]+)/i);
   if (fromUrl?.[1]) return fromUrl[1];
   if (/^[a-zA-Z0-9]{10,}$/.test(t)) return t;
   return null;
@@ -88,6 +94,15 @@ export type PlaylistImportOk = {
   interleaved: boolean;
 };
 
+export type PlaylistImportFailure =
+  | { ok: false; reason: "not_member" | "ended" | "empty" }
+  | {
+      ok: false;
+      reason: "playlist_not_found" | "playlist_forbidden" | "spotify_rate_limited";
+    }
+  | { ok: false; reason: "spotify_not_linked" | "spotify_token" }
+  | { ok: false; reason: "fetch_failed"; httpStatus: number };
+
 /**
  * Merge a Spotify playlist into the session queue (importer's token reads the playlist).
  * Skips tracks already in the **unplayed** queue (by Spotify id). Optional interleave
@@ -98,13 +113,7 @@ export async function importSpotifyPlaylistIntoSession(
   importerUserId: string,
   spotifyPlaylistId: string,
   options?: { interleave?: boolean },
-): Promise<
-  | PlaylistImportOk
-  | {
-      ok: false;
-      reason: "not_member" | "ended" | "fetch_failed" | "empty";
-    }
-> {
+): Promise<PlaylistImportOk | PlaylistImportFailure> {
   const interleave = Boolean(options?.interleave);
 
   const [mem] = await db
@@ -156,9 +165,30 @@ export async function importSpotifyPlaylistIntoSession(
     `https://api.spotify.com/v1/playlists/${encodeURIComponent(spotifyPlaylistId)}/tracks?limit=100`;
 
   while (url && payloads.length < MAX_IMPORT) {
-    const res = await spotifyUserGet(importerUserId, url);
+    let res: Response;
+    try {
+      res = await spotifyUserGet(importerUserId, url);
+    } catch (e) {
+      if (e instanceof SpotifyNotLinkedError) {
+        return { ok: false, reason: "spotify_not_linked" };
+      }
+      if (e instanceof SpotifyTokenError) {
+        return { ok: false, reason: "spotify_token" };
+      }
+      throw e;
+    }
     if (!res.ok) {
-      return { ok: false, reason: "fetch_failed" };
+      const status = res.status;
+      if (status === 404) {
+        return { ok: false, reason: "playlist_not_found" };
+      }
+      if (status === 403) {
+        return { ok: false, reason: "playlist_forbidden" };
+      }
+      if (status === 429) {
+        return { ok: false, reason: "spotify_rate_limited" };
+      }
+      return { ok: false, reason: "fetch_failed", httpStatus: status };
     }
     const json = (await res.json()) as PlaylistTracksJson;
     const items = json.items ?? [];

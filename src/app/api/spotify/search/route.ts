@@ -38,10 +38,11 @@ export async function GET(req: Request) {
     );
   }
 
+  // Spotify Search API: limit per type is 0–10 (not 50). Values above 10 return 400 Invalid limit.
   const url = `https://api.spotify.com/v1/search?${new URLSearchParams({
     q,
     type: "track",
-    limit: "12",
+    limit: "10",
   })}`;
 
   let res: Response;

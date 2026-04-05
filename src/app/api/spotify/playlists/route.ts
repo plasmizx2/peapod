@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import {
+  SpotifyNotLinkedError,
+  SpotifyTokenError,
+} from "@/lib/spotify/access-token";
 import { spotifyUserGet } from "@/lib/spotify/user-api";
 
 export async function GET() {
@@ -10,12 +14,49 @@ export async function GET() {
 
   const url = "https://api.spotify.com/v1/me/playlists?limit=50";
 
-  const res = await spotifyUserGet(session.user.id, url);
+  let res: Response;
+  try {
+    res = await spotifyUserGet(session.user.id, url);
+  } catch (e) {
+    if (e instanceof SpotifyNotLinkedError) {
+      return NextResponse.json(
+        {
+          error: "Link Spotify under Music services to load playlists.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 503 },
+      );
+    }
+    if (e instanceof SpotifyTokenError) {
+      return NextResponse.json(
+        {
+          error: "Reconnect Spotify under Music services.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 503 },
+      );
+    }
+    throw e;
+  }
+
   if (!res.ok) {
     const t = await res.text();
     console.error("[spotify/playlists]", res.status, t.slice(0, 300));
+    const scopeIssue =
+      res.status === 403 &&
+      /Insufficient client scope/i.test(t);
+    if (scopeIssue || res.status === 403) {
+      return NextResponse.json(
+        {
+          error:
+            "Spotify blocked playlist access — open Music services and tap Reconnect so we can request playlist permissions.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 403 },
+      );
+    }
     return NextResponse.json(
-      { error: "Could not load playlists — link Spotify in Music services." },
+      { error: "Could not load playlists — try again or reconnect Spotify." },
       { status: 502 },
     );
   }

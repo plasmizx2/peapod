@@ -15,7 +15,7 @@ type RouteContext = { params: Promise<{ sessionId: string }> };
  * Server-Sent Events: pushes lobby snapshots when the member list or session
  * status changes (~1s cadence; client reconnects when the stream ends or tab sleeps).
  */
-export async function GET(_req: Request, context: RouteContext) {
+export async function GET(req: Request, context: RouteContext) {
   const session = await auth();
   if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 });
@@ -28,19 +28,36 @@ export async function GET(_req: Request, context: RouteContext) {
 
   const userId = session.user.id;
   const encoder = new TextEncoder();
+  const signal = req.signal;
+
+  function safeEnqueue(controller: ReadableStreamDefaultController<Uint8Array>, chunk: Uint8Array) {
+    try {
+      controller.enqueue(chunk);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function safeClose(controller: ReadableStreamDefaultController<Uint8Array>) {
+    try {
+      controller.close();
+    } catch {
+      /* already closed (client disconnected) */
+    }
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
       let lastPayload = "";
       const streamUntil = Date.now() + 52_000;
       try {
-        while (Date.now() < streamUntil) {
+        while (Date.now() < streamUntil && !signal.aborted) {
           const lobby = await getSessionLobbyForUser(sessionId, userId);
           if (!lobby) {
-            controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ type: "gone" })}\n\n`,
-              ),
+            safeEnqueue(
+              controller,
+              encoder.encode(`data: ${JSON.stringify({ type: "gone" })}\n\n`),
             );
             break;
           }
@@ -60,19 +77,22 @@ export async function GET(_req: Request, context: RouteContext) {
           const json = JSON.stringify(body);
           if (json !== lastPayload) {
             lastPayload = json;
-            controller.enqueue(encoder.encode(`data: ${json}\n\n`));
+            if (!safeEnqueue(controller, encoder.encode(`data: ${json}\n\n`))) {
+              break;
+            }
           }
           await new Promise((r) => setTimeout(r, 900));
         }
       } catch (e) {
         console.error("[sessions/stream]", e);
-        controller.enqueue(
+        safeEnqueue(
+          controller,
           encoder.encode(
             `data: ${JSON.stringify({ type: "error", message: "stream failed" })}\n\n`,
           ),
         );
       } finally {
-        controller.close();
+        safeClose(controller);
       }
     },
   });

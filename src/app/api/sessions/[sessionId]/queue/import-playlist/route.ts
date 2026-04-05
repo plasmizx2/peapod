@@ -59,14 +59,54 @@ export async function POST(req: Request, context: RouteContext) {
     if (out.reason === "ended") {
       return NextResponse.json({ error: "Session has ended" }, { status: 410 });
     }
-    if (out.reason === "fetch_failed") {
+    if (out.reason === "playlist_not_found") {
       return NextResponse.json(
         {
           error:
-            "Could not read that playlist — link Spotify, or use a playlist you can open in your account.",
+            "That playlist wasn’t found. Check the link or id — or try opening the playlist in Spotify first, then paste the same URL from the share menu.",
         },
-        { status: 502 },
+        { status: 404 },
       );
+    }
+    if (out.reason === "playlist_forbidden") {
+      return NextResponse.json(
+        {
+          error:
+            "Spotify won’t open that playlist for your account. If it’s someone else’s private list, ask them to invite you or make it public; your own private playlists should work when you’re signed into the same Spotify account here.",
+        },
+        { status: 403 },
+      );
+    }
+    if (out.reason === "spotify_rate_limited") {
+      return NextResponse.json(
+        { error: "Spotify rate limit — try again in a minute." },
+        { status: 429 },
+      );
+    }
+    if (out.reason === "spotify_not_linked") {
+      return NextResponse.json(
+        {
+          error: "Link Spotify under Music services to import playlists.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 503 },
+      );
+    }
+    if (out.reason === "spotify_token") {
+      return NextResponse.json(
+        {
+          error: "Spotify session expired — reconnect under Music services.",
+          needsSpotifyReconnect: true,
+        },
+        { status: 503 },
+      );
+    }
+    if (out.reason === "fetch_failed") {
+      const hint =
+        out.httpStatus >= 500
+          ? "Spotify had a server error — try again in a moment."
+          : "Couldn’t read that playlist from Spotify. Check the link, reconnect under Music services if needed, or use a playlist you can open in the Spotify app while logged in as this account.";
+      return NextResponse.json({ error: hint }, { status: 502 });
     }
     return NextResponse.json(
       { error: "No tracks could be imported" },

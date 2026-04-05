@@ -94,6 +94,8 @@ export function SessionQueuePanel({
   const [importBusy, setImportBusy] = useState(false);
   const [importInterleave, setImportInterleave] = useState(false);
   const [importFeedback, setImportFeedback] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importReconnectHint, setImportReconnectHint] = useState(false);
   const [hostPlaylists, setHostPlaylists] = useState<
     { id: string; name: string; tracksTotal: number }[]
   >([]);
@@ -463,7 +465,8 @@ export function SessionQueuePanel({
 
   async function importPlaylist() {
     setImportBusy(true);
-    setSearchError(null);
+    setImportError(null);
+    setImportReconnectHint(false);
     setImportFeedback(null);
     try {
       const res = await fetch(
@@ -485,9 +488,11 @@ export function SessionQueuePanel({
         scannedFromPlaylist?: number;
         interleaved?: boolean;
         message?: string;
+        needsSpotifyReconnect?: boolean;
       };
       if (!res.ok) {
-        setSearchError(data.error ?? "Import failed");
+        setImportError(data.error ?? "Import failed");
+        setImportReconnectHint(Boolean(data.needsSpotifyReconnect));
         return;
       }
       setPlaylistImportUrl("");
@@ -518,7 +523,8 @@ export function SessionQueuePanel({
       }
       onRefresh();
     } catch {
-      setSearchError("Import failed");
+      setImportError("Import failed");
+      setImportReconnectHint(false);
     } finally {
       setImportBusy(false);
     }
@@ -927,6 +933,22 @@ export function SessionQueuePanel({
               )}
             </button>
           </div>
+          {importError ? (
+            <div className="mt-2 text-sm text-rust" role="alert">
+              <p>{importError}</p>
+              {importReconnectHint ? (
+                <p className="mt-2 text-forest-dark">
+                  <Link
+                    href="/dashboard/accounts"
+                    className="font-medium text-sage underline decoration-sage/40 underline-offset-2 hover:text-forest-dark"
+                  >
+                    Music services
+                  </Link>{" "}
+                  — reconnect Spotify, then try import again.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {importFeedback ? (
             <p className="mt-2 text-xs text-sage" role="status">
               {importFeedback}
