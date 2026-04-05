@@ -322,13 +322,20 @@ export const sessionQueue = pgTable(
       .notNull()
       .references(() => tracks.id, { onDelete: "cascade" }),
     queuePosition: integer("queue_position").notNull(),
-    /** member_add | ai | vote | fallback */
+    /** member_add | ai | vote | fallback | request */
     sourceType: text("source_type").notNull().default("member_add"),
     addedByUserId: uuid("added_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    /** For request-type adds: who originally requested the track. */
+    requestedByUserId: uuid("requested_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     playedAt: timestamp("played_at", { withTimezone: true }),
     score: doublePrecision("score"),
+    /** queued | soft_vetoed | hard_vetoed */
+    status: text("status").notNull().default("queued"),
+    vetoedAt: timestamp("vetoed_at", { withTimezone: true }),
     /** Set when this row was appended to the host driving log playlist. */
     driverPositiveLoggedAt: timestamp("driver_positive_logged_at", {
       withTimezone: true,
@@ -368,5 +375,84 @@ export const sessionVotes = pgTable(
   (t) => [
     primaryKey({ columns: [t.sessionId, t.userId, t.queueItemId] }),
     index("session_votes_queue_item_idx").on(t.queueItemId),
+  ],
+);
+
+/** Per-user veto actions on queued tracks — democratic veto system. */
+export const sessionVetoes = pgTable(
+  "session_vetoes",
+  {
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => listeningSessions.id, { onDelete: "cascade" }),
+    queueItemId: uuid("queue_item_id")
+      .notNull()
+      .references(() => sessionQueue.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.sessionId, t.userId, t.queueItemId] }),
+    index("session_vetoes_queue_item_idx").on(t.queueItemId),
+  ],
+);
+
+/** User profile — display name, bio, avatar, privacy. */
+export const userProfiles = pgTable("user_profiles", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  displayName: text("display_name"),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+  /** public | friends_only | private */
+  listeningVisibility: text("listening_visibility").notNull().default("friends_only"),
+  /** Whether this user's session history is visible to friends */
+  sessionHistoryVisible: boolean("session_history_visible").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** Friendships — bidirectional with pending/accepted status. */
+export const friendships = pgTable(
+  "friendships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requesterId: uuid("requester_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    addresseeId: uuid("addressee_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** pending | accepted | declined */
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("friendships_pair_idx").on(t.requesterId, t.addresseeId),
+    index("friendships_addressee_idx").on(t.addresseeId),
+  ],
+);
+
+/** Song of the day — one per user per date. */
+export const songOfTheDay = pgTable(
+  "song_of_the_day",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    /** Date string YYYY-MM-DD for uniqueness */
+    dateStr: text("date_str").notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("song_of_the_day_user_date_idx").on(t.userId, t.dateStr),
   ],
 );

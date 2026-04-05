@@ -10,6 +10,9 @@ import {
   getTopArtists,
   getTopTracks,
 } from "@/lib/data/listening-insights";
+import { detectCurrentPhase } from "@/lib/data/phase-detection";
+import { getForgottenFavorites } from "@/lib/data/forgotten-tracks";
+import { getSongOfTheDay } from "@/lib/data/song-of-the-day";
 import type { TimePatterns } from "@/types/listening";
 
 export default async function DashboardHomePage() {
@@ -25,6 +28,9 @@ export default async function DashboardHomePage() {
   let topArtists: Awaited<ReturnType<typeof getTopArtists>> = [];
   let timePatterns: TimePatterns | null = null;
   let vibeLine: string | null = null;
+  let phaseInfo: Awaited<ReturnType<typeof detectCurrentPhase>> = null;
+  let forgottenTracks: Awaited<ReturnType<typeof getForgottenFavorites>> = [];
+  let songOfDay: Awaited<ReturnType<typeof getSongOfTheDay>> = null;
 
   if (session?.user?.id) {
     const uid = session.user.id;
@@ -49,6 +55,17 @@ export default async function DashboardHomePage() {
         getTopArtists(uid, 5),
         getTimePatterns(uid),
       ]);
+
+      // Phase detection and forgotten favorites (need decent data)
+      if (listeningCount >= 50) {
+        [phaseInfo, forgottenTracks, songOfDay] = await Promise.all([
+          detectCurrentPhase(uid),
+          getForgottenFavorites(uid, 5),
+          getSongOfTheDay(uid),
+        ]);
+      } else if (listeningCount > 0) {
+        songOfDay = await getSongOfTheDay(uid);
+      }
     }
   }
 
@@ -61,6 +78,10 @@ export default async function DashboardHomePage() {
       topArtists={topArtists}
       timePatterns={timePatterns}
       vibeLine={vibeLine}
+      phaseInfo={phaseInfo}
+      forgottenTracks={forgottenTracks}
+      songOfDay={songOfDay}
     />
   );
 }
+

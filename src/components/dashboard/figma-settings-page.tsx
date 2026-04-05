@@ -1,10 +1,83 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, Settings as SettingsIcon } from "lucide-react";
-import { motion } from "motion/react";
+import { useEffect, useState } from "react";
+import {
+  User,
+  Eye,
+  EyeOff,
+  Globe,
+  Users,
+  Lock,
+  Save,
+  Loader2,
+  Check,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+
+type Profile = {
+  displayName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  listeningVisibility: string;
+  sessionHistoryVisible: boolean;
+};
+
+const VISIBILITY_OPTIONS = [
+  { value: "public", label: "Public", icon: Globe, desc: "Anyone can see your listening" },
+  { value: "friends_only", label: "Friends only", icon: Users, desc: "Only accepted friends" },
+  { value: "private", label: "Private", icon: Lock, desc: "Only you" },
+];
 
 export function FigmaSettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [listeningVisibility, setListeningVisibility] = useState("friends_only");
+  const [sessionHistoryVisible, setSessionHistoryVisible] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((r) => r.json())
+      .then((data: Profile) => {
+        setDisplayName(data.displayName ?? "");
+        setBio(data.bio ?? "");
+        setListeningVisibility(data.listeningVisibility);
+        setSessionHistoryVisible(data.sessionHistoryVisible);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function saveProfile() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: displayName.trim() || null,
+          bio: bio.trim() || null,
+          listeningVisibility,
+          sessionHistoryVisible,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-sage" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8">
       <motion.div
@@ -12,62 +85,180 @@ export function FigmaSettingsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h1 className="text-4xl sm:text-5xl mb-2 text-forest-dark">
+        <h1 className="font-display text-4xl font-semibold text-forest-dark sm:text-5xl">
           Settings
         </h1>
-        <p className="text-base sm:text-lg text-moss">
-          Profile and preferences. Building this out as we go.
+        <p className="mt-2 text-base text-moss sm:text-lg">
+          Your profile and privacy preferences.
         </p>
       </motion.div>
 
-      {/* Placeholder Card */}
+      {/* Profile section */}
       <motion.div
-        className="bg-cream rounded-2xl border border-forest/10 p-8 sm:p-12 shadow-lg"
+        className="rounded-3xl border border-forest/10 bg-cream p-6 shadow-lg sm:p-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
       >
-        <div className="text-center py-6 sm:py-8">
-          <motion.div
-            className="w-20 h-20 rounded-2xl bg-sage/20 flex items-center justify-center mx-auto mb-5"
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
-            <SettingsIcon className="w-10 h-10 text-sage" />
-          </motion.div>
+        <div className="mb-6 flex items-center gap-2">
+          <User className="h-5 w-5 text-sage" />
+          <h2 className="text-lg font-semibold text-forest-dark">Profile</h2>
+        </div>
 
-          <h3 className="text-2xl sm:text-3xl mb-3 text-forest-dark">
-            Barebones for now
-          </h3>
-          <p className="text-sm sm:text-base text-moss mb-6 max-w-md mx-auto leading-relaxed">
-            Getting Spotify working first. Profile stuff, notifications,
-            privacy controls — all that shows up here when we build it.
-          </p>
-          <Link
-            href="/dashboard/accounts"
-            className="inline-flex items-center gap-2 text-forest-dark hover:text-sage transition-colors font-medium group"
-          >
-            Connect music instead
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </Link>
+        <div className="space-y-5">
+          <div>
+            <label
+              htmlFor="display-name"
+              className="mb-1.5 block text-sm font-medium text-forest-dark"
+            >
+              Display name
+            </label>
+            <input
+              id="display-name"
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="How others see you"
+              maxLength={50}
+              className="w-full rounded-xl border border-forest/15 bg-white px-4 py-3 text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="bio"
+              className="mb-1.5 block text-sm font-medium text-forest-dark"
+            >
+              Bio
+            </label>
+            <textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="A few words about your taste..."
+              maxLength={160}
+              rows={3}
+              className="w-full resize-none rounded-xl border border-forest/15 bg-white px-4 py-3 text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
+            />
+            <p className="mt-1 text-right text-xs text-moss">
+              {bio.length}/160
+            </p>
+          </div>
         </div>
       </motion.div>
 
-      {/* Roadmap */}
+      {/* Privacy section */}
       <motion.div
-        className="bg-sage/10 rounded-2xl border border-sage/30 p-6 sm:p-8"
+        className="rounded-3xl border border-forest/10 bg-cream p-6 shadow-lg sm:p-8"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.2 }}
       >
-        <h4 className="font-semibold text-forest-dark mb-4 text-sm sm:text-base">
-          What&apos;s coming
+        <div className="mb-6 flex items-center gap-2">
+          <Eye className="h-5 w-5 text-sage" />
+          <h2 className="text-lg font-semibold text-forest-dark">Privacy</h2>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <p className="mb-3 text-sm font-medium text-forest-dark">
+              Who can see your listening activity?
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {VISIBILITY_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const active = listeningVisibility === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setListeningVisibility(opt.value)}
+                    className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all ${
+                      active
+                        ? "border-sage bg-sage/15 text-forest-dark shadow-sm"
+                        : "border-forest/10 bg-white/60 text-moss hover:border-sage/40"
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 ${active ? "text-sage" : "text-moss"}`} />
+                    <span className="text-sm font-medium">{opt.label}</span>
+                    <span className="text-xs text-moss">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-forest/10 bg-white/60 p-4">
+            <div className="flex items-center gap-3">
+              {sessionHistoryVisible ? (
+                <Eye className="h-5 w-5 text-sage" />
+              ) : (
+                <EyeOff className="h-5 w-5 text-moss" />
+              )}
+              <div>
+                <p className="text-sm font-medium text-forest-dark">
+                  Session history visible to friends
+                </p>
+                <p className="text-xs text-moss">
+                  Past group sessions show on your profile
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSessionHistoryVisible(!sessionHistoryVisible)}
+              className={`relative h-7 w-12 rounded-full transition-colors ${
+                sessionHistoryVisible ? "bg-sage" : "bg-moss/30"
+              }`}
+            >
+              <motion.div
+                className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm"
+                animate={{ left: sessionHistoryVisible ? 22 : 2 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Save button */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+      >
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void saveProfile()}
+          className="inline-flex items-center gap-2 rounded-2xl bg-forest px-6 py-3 font-medium text-mint-light shadow-lg transition-all hover:bg-forest-dark hover:shadow-xl disabled:opacity-60"
+        >
+          {saving ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : saved ? (
+            <Check className="h-5 w-5" />
+          ) : (
+            <Save className="h-5 w-5" />
+          )}
+          {saving ? "Saving..." : saved ? "Saved!" : "Save changes"}
+        </button>
+      </motion.div>
+
+      {/* Coming soon */}
+      <motion.div
+        className="rounded-2xl border border-sage/30 bg-sage/10 p-6 sm:p-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
+        <h4 className="mb-4 text-sm font-semibold text-forest-dark sm:text-base">
+          Coming next
         </h4>
         <ul className="space-y-3 text-sm text-moss">
           {[
-            "Profile (name, photo, maybe a bio)",
-            "Notification settings",
-            "Privacy toggles",
+            "Profile photo upload",
+            "Friend activity timeline",
+            "Notification preferences",
             "Data export",
           ].map((item, idx) => (
             <motion.li
@@ -75,10 +266,10 @@ export function FigmaSettingsPage() {
               className="flex items-center gap-3"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 + idx * 0.1 }}
+              transition={{ duration: 0.4, delay: 0.5 + idx * 0.1 }}
             >
               <motion.span
-                className="w-2 h-2 rounded-full bg-sage flex-shrink-0"
+                className="h-2 w-2 flex-shrink-0 rounded-full bg-sage"
                 animate={{ scale: [1, 1.3, 1] }}
                 transition={{
                   duration: 2,

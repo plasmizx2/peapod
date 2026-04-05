@@ -1,10 +1,11 @@
-import { and, asc, eq, max, sql } from "drizzle-orm";
+import { and, asc, count, eq, max, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   artists,
   listeningSessions,
   sessionMembers,
   sessionQueue,
+  sessionVetoes,
   sessionVotes,
   tracks,
   users,
@@ -65,6 +66,9 @@ export type SessionQueueRow = {
   score: number | null;
   voteTotal: number;
   myVote: number | null;
+  status: string;
+  vetoCount: number;
+  myVeto: boolean;
 };
 
 export async function getSessionQueue(
@@ -88,12 +92,18 @@ export async function getSessionQueue(
       adderEmail: users.email,
       playedAt: sessionQueue.playedAt,
       score: sessionQueue.score,
+      status: sessionQueue.status,
     })
     .from(sessionQueue)
     .innerJoin(tracks, eq(sessionQueue.trackId, tracks.id))
     .innerJoin(artists, eq(tracks.primaryArtistId, artists.id))
     .leftJoin(users, eq(sessionQueue.addedByUserId, users.id))
-    .where(eq(sessionQueue.sessionId, sessionId))
+    .where(
+      and(
+        eq(sessionQueue.sessionId, sessionId),
+        ne(sessionQueue.status, "hard_vetoed"),
+      ),
+    )
     .orderBy(asc(sessionQueue.queuePosition));
 
   const voteTotals = await db
@@ -130,6 +140,33 @@ export async function getSessionQueue(
     myByItem.set(v.queueItemId, v.value);
   }
 
+  // Veto counts per queue item
+  const vetoCounts = await db
+    .select({
+      queueItemId: sessionVetoes.queueItemId,
+      total: count(),
+    })
+    .from(sessionVetoes)
+    .where(eq(sessionVetoes.sessionId, sessionId))
+    .groupBy(sessionVetoes.queueItemId);
+
+  const vetoByItem = new Map<string, number>();
+  for (const v of vetoCounts) {
+    vetoByItem.set(v.queueItemId, Number(v.total));
+  }
+
+  // My vetoes
+  const myVetoes = await db
+    .select({ queueItemId: sessionVetoes.queueItemId })
+    .from(sessionVetoes)
+    .where(
+      and(
+        eq(sessionVetoes.sessionId, sessionId),
+        eq(sessionVetoes.userId, userId),
+      ),
+    );
+  const myVetoSet = new Set(myVetoes.map((v) => v.queueItemId));
+
   return rows.map((r) => ({
     id: r.id,
     position: r.position,
@@ -145,6 +182,9 @@ export async function getSessionQueue(
     score: r.score,
     voteTotal: voteByItem.get(r.id) ?? 0,
     myVote: myByItem.get(r.id) ?? null,
+    status: r.status,
+    vetoCount: vetoByItem.get(r.id) ?? 0,
+    myVeto: myVetoSet.has(r.id),
   }));
 }
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Ban,
   ChevronDown,
   ChevronUp,
   ListMusic,
@@ -29,6 +30,9 @@ export type QueueItem = {
   score: number | null;
   voteTotal: number;
   myVote: number | null;
+  status: string;
+  vetoCount: number;
+  myVeto: boolean;
 };
 
 type SearchHit = {
@@ -88,6 +92,7 @@ export function SessionQueuePanel({
   const [searchReconnectHint, setSearchReconnectHint] = useState(false);
   const [playbackBusy, setPlaybackBusy] = useState<string | null>(null);
   const [voteBusy, setVoteBusy] = useState<string | null>(null);
+  const [vetoBusy, setVetoBusy] = useState<string | null>(null);
   const [reorderBusy, setReorderBusy] = useState(false);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [playlistImportUrl, setPlaylistImportUrl] = useState("");
@@ -1138,13 +1143,16 @@ export function SessionQueuePanel({
                 {allSorted.map((item, index) => {
                   const rank = index + 1;
                   const isTop = rank === 1 && !item.playedAt;
+                  const isSoftVetoed = item.status === "soft_vetoed";
                   return (
                     <li
                       key={item.id}
                       className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${
                         item.playedAt
                           ? "border-forest/5 bg-white/30 opacity-50"
-                          : isTop
+                          : isSoftVetoed
+                            ? "border-rust/20 bg-rust/5 opacity-60"
+                            : isTop
                             ? "border-[#1DB954]/30 bg-[#1DB954]/8 shadow-sm"
                             : "border-forest/10 bg-white/60"
                       }`}
@@ -1165,6 +1173,7 @@ export function SessionQueuePanel({
                         <p className="truncate text-xs text-moss">
                           {item.artistName} · {item.addedByDisplayName}
                           {item.playedAt ? " · Played" : null}
+                          {isSoftVetoed ? " · ⚠ vetoed" : null}
                         </p>
                       </div>
                       {/* Vote count */}
@@ -1201,6 +1210,32 @@ export function SessionQueuePanel({
                             >
                               <ThumbsDown className="h-4 w-4" aria-hidden />
                             </button>
+                            <button
+                              type="button"
+                              title={item.myVeto ? "Undo veto" : "Veto"}
+                              disabled={vetoBusy === item.id}
+                              onClick={async () => {
+                                setVetoBusy(item.id);
+                                try {
+                                  const method = item.myVeto ? "DELETE" : "POST";
+                                  await fetch(
+                                    `/api/sessions/${sessionId}/queue/${item.id}/veto`,
+                                    { method },
+                                  );
+                                  onRefresh();
+                                } finally {
+                                  setVetoBusy(null);
+                                }
+                              }}
+                              className={`rounded p-1 ${item.myVeto ? "bg-rust/30 text-rust" : "text-moss hover:bg-rust/15 hover:text-rust"}`}
+                            >
+                              <Ban className="h-4 w-4" aria-hidden />
+                            </button>
+                            {item.vetoCount > 0 ? (
+                              <span className="text-[10px] font-bold text-rust">
+                                {item.vetoCount}
+                              </span>
+                            ) : null}
                             <button
                               type="button"
                               title="Remove"
@@ -1283,6 +1318,32 @@ export function SessionQueuePanel({
                         >
                           <ThumbsDown className="h-4 w-4" aria-hidden />
                         </button>
+                        <button
+                          type="button"
+                          title={item.myVeto ? "Undo veto" : "Veto"}
+                          disabled={vetoBusy === item.id}
+                          onClick={async () => {
+                            setVetoBusy(item.id);
+                            try {
+                              const method = item.myVeto ? "DELETE" : "POST";
+                              await fetch(
+                                `/api/sessions/${sessionId}/queue/${item.id}/veto`,
+                                { method },
+                              );
+                              onRefresh();
+                            } finally {
+                              setVetoBusy(null);
+                            }
+                          }}
+                          className={`rounded p-1 ${item.myVeto ? "bg-rust/30 text-rust" : "text-moss hover:bg-rust/15 hover:text-rust"}`}
+                        >
+                          <Ban className="h-4 w-4" aria-hidden />
+                        </button>
+                        {item.vetoCount > 0 ? (
+                          <span className="text-[10px] font-bold text-rust">
+                            {item.vetoCount}
+                          </span>
+                        ) : null}
                         <button
                           type="button"
                           title="Remove"

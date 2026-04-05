@@ -13,6 +13,10 @@ export function buildMoodExplanation(
     focus: "Favoring familiar tracks that usually anchor longer listening sessions.",
     nostalgic:
       "Surfacing older favorites you haven’t replayed as much lately.",
+    drive: "Balanced energy picks that work well on the road — familiar but not sleepy.",
+    sad: "Pulling from your night-heavy, deeply replayed tracks — reflective territory.",
+    chill: "Relaxed mid-range picks — not too energetic, not too moody.",
+    hype_up: "Your most replayed, highest-energy tracks — pre-game material.",
   };
   return base + tail[preset];
 }

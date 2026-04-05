@@ -43,6 +43,32 @@ function scorePreset(row: Row, preset: SoloPresetId): number {
       const d = daysSince(row.lastListenedAt);
       return Math.log1p(plays) * Math.min(d / 4, 45);
     }
+    case "drive": {
+      // Balanced energy: mid-high play counts, not too niche, recent relevance
+      const familiarity = Math.log1p(plays);
+      const recency = 1 / (1 + daysSince(row.lastListenedAt) / 30);
+      return 1.5 * familiarity + 0.8 * recency;
+    }
+    case "sad": {
+      // Slower tracks, night + low-energy bias
+      const nightWeight = Math.log1p(night) * 1.8;
+      const deepFam = Math.log1p(plays) * 0.9;
+      return nightWeight + deepFam;
+    }
+    case "chill": {
+      // Moderate plays, relaxed but not sleepy — penalize extremes
+      const midRange = plays >= 3 && plays <= 60;
+      const base = Math.log1p(plays);
+      const dayPenalty = night > plays * 0.6 ? 0.7 : 1; // penalize heavy night-only tracks
+      return base * (midRange ? 1.3 : 0.8) * dayPenalty + 0.3 * rec;
+    }
+    case "hype_up": {
+      // Highest energy: most replayed, most recent, not night-leaning
+      const highEnergy = Math.log1p(plays) * 2.2;
+      const recencyBoost = rec * 1.5;
+      const nightPenalty = night > plays * 0.5 ? 0.6 : 1;
+      return highEnergy * nightPenalty + recencyBoost;
+    }
     default:
       return Math.log1p(plays);
   }

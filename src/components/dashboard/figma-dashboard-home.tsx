@@ -21,6 +21,9 @@ import type {
   TopArtist,
   TopTrack,
 } from "@/types/listening";
+import type { PhaseInfo } from "@/lib/data/phase-detection";
+import type { ForgottenTrack } from "@/lib/data/forgotten-tracks";
+import type { SongOfTheDayResult } from "@/lib/data/song-of-the-day";
 
 function formatHourUtcLabel(h: number) {
   return `${h.toString().padStart(2, "0")}:00 UTC`;
@@ -45,6 +48,9 @@ export function FigmaDashboardHome({
   topArtists,
   timePatterns,
   vibeLine,
+  phaseInfo,
+  forgottenTracks,
+  songOfDay,
 }: {
   firstName: string;
   listeningCount: number;
@@ -53,6 +59,9 @@ export function FigmaDashboardHome({
   topArtists: TopArtist[];
   timePatterns: TimePatterns | null;
   vibeLine: string | null;
+  phaseInfo: PhaseInfo | null;
+  forgottenTracks: ForgottenTrack[];
+  songOfDay: SongOfTheDayResult | null;
 }) {
   const [isHovering, setIsHovering] = useState(false);
   const x = useMotionValue(0);
@@ -137,6 +146,86 @@ export function FigmaDashboardHome({
               (solo)
             </span>
           </h2>
+
+          {/* Phase detection card */}
+          {phaseInfo ? (
+            <motion.div
+              className="rounded-3xl border border-sage/30 bg-gradient-to-br from-sage/10 to-mint/20 p-6 shadow-md sm:p-8"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-sage" aria-hidden />
+                <h3 className="text-lg font-semibold text-forest-dark">
+                  Your current phase
+                </h3>
+              </div>
+              <p className="text-base font-medium text-forest-dark">
+                {phaseInfo.phase}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {phaseInfo.topArtistsRecent.slice(0, 5).map((a) => (
+                  <span
+                    key={a}
+                    className="rounded-full bg-sage/20 px-3 py-1 text-xs font-medium text-forest-dark"
+                  >
+                    {a}
+                  </span>
+                ))}
+              </div>
+              {phaseInfo.similarity < 0.5 ? (
+                <p className="mt-3 text-xs text-moss">
+                  Your recent taste has shifted from your usual patterns —
+                  exploring something new.
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-moss">
+                  Staying consistent with your core taste.
+                </p>
+              )}
+            </motion.div>
+          ) : null}
+
+          {/* Forgotten favorites card */}
+          {forgottenTracks.length > 0 ? (
+            <motion.div
+              className="rounded-3xl border border-forest/10 bg-white/80 p-6 shadow-md sm:p-8"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <Clock className="h-5 w-5 text-rust" aria-hidden />
+                <h3 className="text-lg font-semibold text-forest-dark">
+                  Forgotten favorites
+                </h3>
+              </div>
+              <p className="mb-4 text-xs text-moss">
+                Songs you used to love but haven&apos;t played in a while.
+              </p>
+              <ul className="space-y-3">
+                {forgottenTracks.map((t) => (
+                  <li
+                    key={`${t.trackName}-${t.artistName}`}
+                    className="flex items-baseline justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-forest-dark">
+                        {t.trackName}
+                      </p>
+                      <p className="truncate text-xs text-moss">
+                        {t.artistName}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-moss">
+                      {t.playCount}× · {t.daysSinceLastListen}d ago
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          ) : null}
 
           {recentPlays.length > 0 ? (
             <div className="rounded-3xl border border-forest/10 bg-cream p-6 shadow-lg sm:p-8">
@@ -441,6 +530,42 @@ export function FigmaDashboardHome({
           </div>
         </div>
       </motion.div>
+
+      {/* Song of the day */}
+      {songOfDay ? (
+        <motion.div
+          className="relative overflow-hidden rounded-3xl border border-sage/30 bg-gradient-to-br from-forest-dark to-forest p-6 text-mint-light shadow-xl sm:p-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+        >
+          {/* Background glow */}
+          <motion.div
+            className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-sage/20 blur-3xl"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 4, repeat: Infinity }}
+          />
+          <div className="relative z-10">
+            <div className="mb-3 flex items-center gap-2">
+              <Music className="h-5 w-5 text-sage" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-sage">
+                Song of the day
+              </span>
+            </div>
+            <p className="text-2xl font-semibold sm:text-3xl">
+              {songOfDay.trackName}
+            </p>
+            <p className="mt-1 text-base text-mint/80">
+              {songOfDay.artistName}
+            </p>
+            {songOfDay.reason ? (
+              <p className="mt-3 text-sm text-mint/60">
+                {songOfDay.reason}
+              </p>
+            ) : null}
+          </div>
+        </motion.div>
+      ) : null}
 
       {/* Animated status cards */}
       <div className="grid sm:grid-cols-2 gap-4">

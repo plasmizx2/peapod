@@ -67,6 +67,7 @@ export async function rebalanceSessionQueue(
       id: sessionQueue.id,
       trackId: sessionQueue.trackId,
       queuePosition: sessionQueue.queuePosition,
+      status: sessionQueue.status,
     })
     .from(sessionQueue)
     .where(eq(sessionQueue.sessionId, sessionId))
@@ -156,12 +157,19 @@ export async function rebalanceSessionQueue(
     return s;
   }
 
-  const scored = queueRows.map((q) => ({
-    ...q,
-    score: scoreForQueueItem(q.id, q.trackId),
-  }));
+  const scored = queueRows
+    .filter((q) => q.status !== "hard_vetoed")
+    .map((q) => ({
+      ...q,
+      score: scoreForQueueItem(q.id, q.trackId),
+    }));
 
   scored.sort((a, b) => {
+    // soft_vetoed items always go to the bottom
+    const aVetoed = a.status === "soft_vetoed" ? 1 : 0;
+    const bVetoed = b.status === "soft_vetoed" ? 1 : 0;
+    if (aVetoed !== bVetoed) return aVetoed - bVetoed;
+    // Primary sort: score (votes-weighted) descending
     if (b.score !== a.score) return b.score - a.score;
     return a.queuePosition - b.queuePosition;
   });

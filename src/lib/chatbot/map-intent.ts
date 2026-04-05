@@ -21,7 +21,6 @@ const RULES: Rule[] = [
       "moon",
       "quiet",
       "calm",
-      "chill",
       "wind down",
       "wind-down",
     ],
@@ -34,14 +33,9 @@ const RULES: Rule[] = [
       "workout",
       "run",
       "running",
-      "energy",
-      "hype",
-      "pump",
       "cardio",
       "lift",
       "lifting",
-      "party",
-      "dance",
       "fast",
       "loud",
     ],
@@ -83,6 +77,87 @@ const RULES: Rule[] = [
       "miss",
     ],
   },
+  {
+    preset: "drive",
+    label: "driving vibes",
+    words: [
+      "drive",
+      "driving",
+      "road",
+      "highway",
+      "cruise",
+      "cruising",
+      "car",
+      "road trip",
+      "roadtrip",
+      "windows down",
+      "commute",
+    ],
+  },
+  {
+    preset: "sad",
+    label: "sad / reflective",
+    words: [
+      "sad",
+      "breakup",
+      "heartbreak",
+      "cry",
+      "crying",
+      "miss",
+      "lonely",
+      "alone",
+      "hurt",
+      "pain",
+      "depressed",
+      "down",
+      "emotional",
+      "broken",
+      "feel",
+      "feelings",
+    ],
+  },
+  {
+    preset: "chill",
+    label: "chill vibes",
+    words: [
+      "chill",
+      "relax",
+      "relaxing",
+      "vibe",
+      "vibes",
+      "mellow",
+      "lowkey",
+      "low key",
+      "smooth",
+      "easy",
+      "laid back",
+      "laidback",
+      "cozy",
+      "lazy",
+    ],
+  },
+  {
+    preset: "hype_up",
+    label: "hype / pregame",
+    words: [
+      "hype",
+      "hyped",
+      "turnt",
+      "pregame",
+      "pre-game",
+      "lit",
+      "energy",
+      "pump",
+      "pumped",
+      "party",
+      "dance",
+      "turn up",
+      "turnup",
+      "get ready",
+      "amp",
+      "amped",
+    ],
+  },
 ];
 
 function scorePrompt(lower: string, words: string[]): number {
@@ -107,6 +182,10 @@ export function mapPromptToPreset(prompt: string): {
     gym: 0,
     focus: 0,
     nostalgic: 0,
+    drive: 0,
+    sad: 0,
+    chill: 0,
+    hype_up: 0,
   };
 
   for (const rule of RULES) {
@@ -118,6 +197,10 @@ export function mapPromptToPreset(prompt: string): {
     "gym",
     "late_night",
     "nostalgic",
+    "drive",
+    "sad",
+    "chill",
+    "hype_up",
   ];
   let best: SoloPresetId = "focus";
   let bestScore = -1;
@@ -140,3 +223,4 @@ export function mapPromptToPreset(prompt: string): {
   const label = RULES.find((r) => r.preset === best)!.label;
   return { preset: best, intentLabel: label, scores };
 }
+
