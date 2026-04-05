@@ -10,6 +10,7 @@ import {
   Music,
   Settings,
   Shield,
+  Sparkles,
   UserPlus,
   Users,
   X,
@@ -38,6 +39,7 @@ export function FigmaDashboardShell({
 
   const navLinks = [
     { path: "/dashboard", label: "Home", icon: Home },
+    { path: "/dashboard/dj", label: "AI DJ", icon: Sparkles },
     { path: "/dashboard/sessions", label: "Group session", icon: Users },
     { path: "/dashboard/friends", label: "Friends", icon: UserPlus },
     { path: "/dashboard/timeline", label: "Timeline", icon: Clock },

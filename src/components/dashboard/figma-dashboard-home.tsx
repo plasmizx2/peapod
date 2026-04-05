@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "motion/react";
 import { useState } from "react";
-import { MoodChatPanel } from "@/components/dashboard/mood-chat-panel";
 import { SoloPresetPlaylists } from "@/components/dashboard/solo-preset-playlists";
 import type { SongOfTheDayResult } from "@/lib/data/song-of-the-day";
 
@@ -167,7 +166,25 @@ export function FigmaDashboardHome({
 
           <SoloPresetPlaylists />
 
-          <MoodChatPanel />
+          {/* CTA Banner to AI DJ */}
+          <Link href="/dashboard/dj" className="block relative overflow-hidden rounded-3xl bg-gradient-to-br from-mint-light via-white to-sage/10 p-8 shadow-sm border border-sage/20 transition-all hover:shadow-md hover:-translate-y-1 group">
+            <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-sage/20 mix-blend-multiply blur-2xl transition-all group-hover:scale-150 group-hover:bg-sage/30"></div>
+            <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-forest-light/10 mix-blend-multiply blur-2xl transition-all group-hover:scale-150 group-hover:bg-forest-light/20"></div>
+            <div className="relative z-10 flex flex-col sm:flex-row gap-6 sm:items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-sage text-white">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-xl font-bold text-forest-dark tracking-tight">AI DJ Mode</h3>
+                </div>
+                <p className="text-moss text-sm max-w-sm">Launch an immersive chat with your personal music intelligence. Generate instant vibes based on your exact mood.</p>
+              </div>
+              <span className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-forest text-mint-light font-medium shadow-sm transition group-hover:bg-forest-dark">
+                Initialize session <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </Link>
 
           <p className="text-center text-sm text-moss">
             <Link
