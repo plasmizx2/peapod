@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { getSessionLobbyForUser } from "@/lib/sessions/create-session";
 import { getSessionQueue } from "@/lib/sessions/queue";
+import { computeCrowdEnergy } from "@/lib/sessions/crowd-energy";
 import {
   getHostNowPlayingPayloadCached,
   slimNowPlaying,
@@ -66,12 +67,14 @@ export async function GET(req: Request, context: RouteContext) {
           const nowPlaying = slimNowPlaying(
             await getHostNowPlayingPayloadCached(lobby.hostUserId),
           );
+          const crowdEnergy = await computeCrowdEnergy(sessionId);
 
           const body = {
             type: "lobby" as const,
             isHost: userId === lobby.hostUserId,
             queue: queue ?? [],
             nowPlaying,
+            crowdEnergy,
             ...lobby,
           };
           const json = JSON.stringify(body);

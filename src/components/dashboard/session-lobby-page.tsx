@@ -42,6 +42,7 @@ type LobbyState = {
   members: Member[];
   queue: QueueItem[];
   nowPlaying: NowPlayingSlim | null;
+  crowdEnergy: { level: string; score: number } | null;
 };
 
 export function SessionLobbyPage() {
@@ -118,6 +119,7 @@ export function SessionLobbyPage() {
       driverRejectPlaylistId?: string | null;
       driverRejectVoteThreshold?: number;
       nowPlaying?: NowPlayingSlim | null;
+      crowdEnergy?: { level: string; score: number } | null;
     };
     if (!res.ok) {
       setError(data.error ?? "Failed to load session");
@@ -146,6 +148,7 @@ export function SessionLobbyPage() {
         driverRejectVoteThreshold: data.driverRejectVoteThreshold ?? -2,
         queue: data.queue ?? [],
         nowPlaying: data.nowPlaying ?? null,
+        crowdEnergy: data.crowdEnergy ?? null,
       });
       setError(null);
     }
@@ -217,6 +220,7 @@ export function SessionLobbyPage() {
                 driverRejectPlaylistId?: string | null;
                 driverRejectVoteThreshold?: number;
                 nowPlaying?: NowPlayingSlim | null;
+                crowdEnergy?: { level: string; score: number } | null;
               };
           if (data.type === "gone") {
             setError("This session has ended or you were removed.");
@@ -240,6 +244,7 @@ export function SessionLobbyPage() {
               driverRejectVoteThreshold: data.driverRejectVoteThreshold ?? -2,
               queue: data.queue ?? [],
               nowPlaying: data.nowPlaying ?? null,
+              crowdEnergy: data.crowdEnergy ?? null,
             });
             setError(null);
           }
@@ -562,6 +567,46 @@ export function SessionLobbyPage() {
                       )}
                     </p>
                   ) : null}
+                </div>
+              ) : null}
+
+              {/* Crowd energy gauge */}
+              {!sessionEnded && lobby.crowdEnergy ? (
+                <div className="mt-4 rounded-xl border border-forest/10 bg-white/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-forest-dark">
+                      Crowd energy
+                    </span>
+                    <span className="text-sm font-bold">
+                      {lobby.crowdEnergy.level === "fire"
+                        ? "🔥"
+                        : lobby.crowdEnergy.level === "high"
+                          ? "⚡"
+                          : lobby.crowdEnergy.level === "medium"
+                            ? "✨"
+                            : "💤"}
+                      {" "}
+                      <span className="text-xs font-semibold text-forest-dark">
+                        {lobby.crowdEnergy.level}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-moss/10">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        lobby.crowdEnergy.level === "fire"
+                          ? "bg-gradient-to-r from-rust to-[#ff6b35]"
+                          : lobby.crowdEnergy.level === "high"
+                            ? "bg-gradient-to-r from-sage to-[#1DB954]"
+                            : lobby.crowdEnergy.level === "medium"
+                              ? "bg-sage"
+                              : "bg-moss/30"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, lobby.crowdEnergy.score * 10)}%`,
+                      }}
+                    />
+                  </div>
                 </div>
               ) : null}
 

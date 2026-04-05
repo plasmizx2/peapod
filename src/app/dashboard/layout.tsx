@@ -17,7 +17,10 @@ export default async function DashboardLayout({
 
   // Redirect first-time users to onboarding.
   const [user] = await db
-    .select({ onboardingCompleted: users.onboardingCompleted })
+    .select({
+      onboardingCompleted: users.onboardingCompleted,
+      role: users.role,
+    })
     .from(users)
     .where(eq(users.id, session.user.id))
     .limit(1);
@@ -26,8 +29,10 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
+  const isAdminUser = user?.role === "admin";
+
   return (
-    <FigmaDashboardShell>
+    <FigmaDashboardShell isAdminUser={isAdminUser}>
       {children}
     </FigmaDashboardShell>
   );

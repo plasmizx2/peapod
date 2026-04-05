@@ -2,13 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Music, Settings, Menu, Users, X, BarChart3 } from "lucide-react";
+import {
+  BarChart3,
+  Clock,
+  Home,
+  Menu,
+  Music,
+  Settings,
+  Shield,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { PeaPodLogo } from "@/components/brand/peapod-logo";
 import { SignOutButton } from "@/components/dashboard/sign-out-button";
 
-export function FigmaDashboardShell({ children }: { children: React.ReactNode }) {
+export function FigmaDashboardShell({
+  children,
+  isAdminUser = false,
+}: {
+  children: React.ReactNode;
+  isAdminUser?: boolean;
+}) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -22,9 +39,14 @@ export function FigmaDashboardShell({ children }: { children: React.ReactNode })
   const navLinks = [
     { path: "/dashboard", label: "Home", icon: Home },
     { path: "/dashboard/sessions", label: "Group session", icon: Users },
+    { path: "/dashboard/friends", label: "Friends", icon: UserPlus },
+    { path: "/dashboard/timeline", label: "Timeline", icon: Clock },
     { path: "/dashboard/accounts", label: "Music services", icon: Music },
     { path: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/dashboard/settings", label: "Settings", icon: Settings },
+    ...(isAdminUser
+      ? [{ path: "/dashboard/admin", label: "Admin", icon: Shield }]
+      : []),
   ];
 
   return (
