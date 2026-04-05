@@ -4,14 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Check,
   Clock,
+  Copy,
+  Hash,
   Loader2,
   Search,
+  Settings,
   UserCheck,
   UserMinus,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 
 type Friend = {
@@ -25,13 +29,14 @@ type Friend = {
   createdAt: string;
 };
 
-export function FriendsPageClient() {
+export function FriendsPageClient({ initialFriendCode }: { initialFriendCode?: string }) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [sending, setSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -127,9 +132,35 @@ export function FriendsPageClient() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.1 }}
       >
-        <div className="mb-4 flex items-center gap-2">
-          <UserPlus className="h-5 w-5 text-sage" />
-          <h2 className="text-lg font-semibold text-forest-dark">Add a friend</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-sage" />
+            <h2 className="text-lg font-semibold text-forest-dark">Add a friend</h2>
+          </div>
+          {initialFriendCode ? (
+            <div className="flex items-center gap-2 text-sm text-moss">
+              <span>Your code:</span>
+              <button
+                onClick={() => {
+                  void navigator.clipboard.writeText(initialFriendCode);
+                  setCodeCopied(true);
+                  setTimeout(() => setCodeCopied(false), 2000);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-forest/15 bg-white px-2 py-1 font-mono tracking-widest text-forest-dark hover:bg-mint/20"
+                title="Copy friend code"
+              >
+                {codeCopied ? <Check className="h-3.5 w-3.5 text-[#1DB954]" /> : <Copy className="h-3.5 w-3.5" />}
+                {initialFriendCode}
+              </button>
+              <Link
+                href="/dashboard/settings"
+                title="Change friend code"
+                className="group flex h-7 w-7 items-center justify-center rounded-lg border border-forest/15 bg-white hover:bg-mint/20"
+              >
+                <Settings className="h-3.5 w-3.5 text-moss group-hover:text-forest-dark" />
+              </Link>
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <div className="relative flex-1">

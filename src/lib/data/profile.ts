@@ -7,6 +7,7 @@ export type UserProfile = {
   bio: string | null;
   avatarUrl: string | null;
   friendCode: string | null;
+  friendCodeUpdatedAt: string | null;
   phoneNumber: string | null;
   listeningVisibility: string;
   sessionHistoryVisible: boolean;
@@ -29,6 +30,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
       bio: userProfiles.bio,
       avatarUrl: userProfiles.avatarUrl,
       friendCode: userProfiles.friendCode,
+      friendCodeUpdatedAt: userProfiles.friendCodeUpdatedAt,
       phoneNumber: userProfiles.phoneNumber,
       listeningVisibility: userProfiles.listeningVisibility,
       sessionHistoryVisible: userProfiles.sessionHistoryVisible,
@@ -37,7 +39,12 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     .where(eq(userProfiles.userId, userId))
     .limit(1);
 
-  if (profile) return profile;
+  if (profile) {
+    return {
+      ...profile,
+      friendCodeUpdatedAt: profile.friendCodeUpdatedAt?.toISOString() ?? null,
+    };
+  }
 
   // Auto-create profile with generated friend code
   const code = generateFriendCode();
@@ -55,6 +62,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile> {
     bio: null,
     avatarUrl: null,
     friendCode: code,
+    friendCodeUpdatedAt: null,
     phoneNumber: null,
     listeningVisibility: "friends_only",
     sessionHistoryVisible: true,
@@ -104,6 +112,7 @@ export async function updateUserProfile(
       bio: data.bio ?? null,
       avatarUrl: data.avatarUrl ?? null,
       friendCode: friendCode ?? generateFriendCode(),
+      friendCodeUpdatedAt: friendCode ? now : null,
       phoneNumber: data.phoneNumber ?? null,
       listeningVisibility: data.listeningVisibility ?? "friends_only",
       sessionHistoryVisible: data.sessionHistoryVisible ?? true,
@@ -115,7 +124,7 @@ export async function updateUserProfile(
         ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
         ...(data.bio !== undefined ? { bio: data.bio } : {}),
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
-        ...(friendCode !== undefined ? { friendCode } : {}),
+        ...(friendCode !== undefined ? { friendCode, friendCodeUpdatedAt: now } : {}),
         ...(data.phoneNumber !== undefined ? { phoneNumber: data.phoneNumber } : {}),
         ...(data.listeningVisibility !== undefined
           ? { listeningVisibility: data.listeningVisibility }

@@ -45,27 +45,46 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "No valid fields provided" }, { status: 400 });
   }
 
-  // Validate friend code uniqueness if being changed
+  const existingProfile = await getUserProfile(session.user.id);
+
+  // Validate friend code uniqueness and time limits if being changed
   if (data.friendCode && typeof data.friendCode === "string") {
     const code = (data.friendCode as string).toUpperCase().trim();
-    if (code.length < 3 || code.length > 16) {
-      return NextResponse.json(
-        { error: "Friend code must be 3-16 characters" },
-        { status: 400 },
-      );
-    }
-    if (!/^[A-Z0-9_]+$/.test(code)) {
-      return NextResponse.json(
-        { error: "Friend code can only contain letters, numbers, and underscores" },
-        { status: 400 },
-      );
-    }
-    const available = await isFriendCodeAvailable(code, session.user.id);
-    if (!available) {
-      return NextResponse.json(
-        { error: "That friend code is already taken" },
-        { status: 409 },
-      );
+    
+    // Only check if they are actually changing it
+    if (code !== existingProfile.friendCode) {
+      if (existingProfile.friendCodeUpdatedAt) {
+        const lastUpdated = new Date(existingProfile.friendCodeUpdatedAt).getTime();
+        const now = Date.now();
+        const msInDay = 24 * 60 * 60 * 1000;
+        if (now - lastUpdated < msInDay) {
+          const hoursLeft = Math.ceil((msInDay - (now - lastUpdated)) / (1000 * 60 * 60));
+          return NextResponse.json(
+            { error: `You can only change your friend code once a day. Try again in ${hoursLeft} hours.` },
+            { status: 429 },
+          );
+        }
+      }
+
+      if (code.length < 3 || code.length > 16) {
+        return NextResponse.json(
+          { error: "Friend code must be 3-16 characters" },
+          { status: 400 },
+        );
+      }
+      if (!/^[A-Z0-9_]+$/.test(code)) {
+        return NextResponse.json(
+          { error: "Friend code can only contain letters, numbers, and underscores" },
+          { status: 400 },
+        );
+      }
+      const available = await isFriendCodeAvailable(code, session.user.id);
+      if (!available) {
+        return NextResponse.json(
+          { error: "That friend code is already taken" },
+          { status: 409 },
+        );
+      }
     }
   }
 

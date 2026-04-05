@@ -413,6 +413,8 @@ export const userProfiles = pgTable(
     avatarUrl: text("avatar_url"),
     /** Unique friend code for discovery (auto-generated, customizable) */
     friendCode: text("friend_code"),
+    /** When the friend code was last changed, to enforce 24h limit */
+    friendCodeUpdatedAt: timestamp("friend_code_updated_at", { withTimezone: true }),
     phoneNumber: text("phone_number"),
     /** public | friends_only | private */
     listeningVisibility: text("listening_visibility").notNull().default("friends_only"),

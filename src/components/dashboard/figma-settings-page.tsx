@@ -22,6 +22,7 @@ type Profile = {
   bio: string | null;
   avatarUrl: string | null;
   friendCode: string | null;
+  friendCodeUpdatedAt: string | null;
   phoneNumber: string | null;
   listeningVisibility: string;
   sessionHistoryVisible: boolean;
@@ -40,6 +41,7 @@ export function FigmaSettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [friendCode, setFriendCode] = useState("");
+  const [friendCodeUpdatedAt, setFriendCodeUpdatedAt] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [listeningVisibility, setListeningVisibility] = useState("friends_only");
   const [sessionHistoryVisible, setSessionHistoryVisible] = useState(true);
@@ -53,6 +55,7 @@ export function FigmaSettingsPage() {
         setDisplayName(data.displayName ?? "");
         setBio(data.bio ?? "");
         setFriendCode(data.friendCode ?? "");
+        setFriendCodeUpdatedAt(data.friendCodeUpdatedAt ?? null);
         setPhoneNumber(data.phoneNumber ?? "");
         setListeningVisibility(data.listeningVisibility);
         setSessionHistoryVisible(data.sessionHistoryVisible);
@@ -77,6 +80,7 @@ export function FigmaSettingsPage() {
           sessionHistoryVisible,
         }),
       });
+      setSaveError(null);
       if (!res.ok) {
         const data = await res.json();
         setSaveError(data.error ?? "Failed to save");
@@ -84,6 +88,7 @@ export function FigmaSettingsPage() {
       }
       const updated = await res.json() as Profile;
       setFriendCode(updated.friendCode ?? friendCode);
+      setFriendCodeUpdatedAt(updated.friendCodeUpdatedAt ?? friendCodeUpdatedAt);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } finally {
@@ -176,32 +181,50 @@ export function FigmaSettingsPage() {
             <p className="mb-2 text-xs text-moss">
               Others can add you with this code. Customize it if you want.
             </p>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-moss/50" />
-                <input
-                  id="friend-code"
-                  type="text"
-                  value={friendCode}
-                  onChange={(e) => setFriendCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))}
-                  placeholder="AUTO-GENERATED"
-                  maxLength={16}
-                  className="w-full rounded-xl border border-forest/15 bg-white py-3 pl-10 pr-4 font-mono tracking-widest text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(friendCode);
-                  setCodeCopied(true);
-                  setTimeout(() => setCodeCopied(false), 2000);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-forest/15 bg-white px-4 py-3 text-sm font-medium text-forest-dark hover:bg-mint/20"
-              >
-                {codeCopied ? <Check className="h-4 w-4 text-[#1DB954]" /> : <Copy className="h-4 w-4" />}
-                {codeCopied ? "Copied" : "Copy"}
-              </button>
-            </div>
+            {(() => {
+              const lastUpdated = friendCodeUpdatedAt ? new Date(friendCodeUpdatedAt).getTime() : null;
+              const now = Date.now();
+              const msInDay = 24 * 60 * 60 * 1000;
+              const canChange = !lastUpdated || now - lastUpdated >= msInDay;
+              const hoursLeft = canChange ? 0 : Math.ceil((msInDay - (now - lastUpdated)) / (1000 * 60 * 60));
+
+              return (
+                <>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-moss/50" />
+                      <input
+                        id="friend-code"
+                        type="text"
+                        value={friendCode}
+                        onChange={(e) => setFriendCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))}
+                        placeholder="AUTO-GENERATED"
+                        maxLength={16}
+                        disabled={!canChange}
+                        className="w-full rounded-xl border border-forest/15 bg-white py-3 pl-10 pr-4 font-mono tracking-widest text-forest-dark placeholder:text-moss/50 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/30 disabled:opacity-60"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(friendCode);
+                        setCodeCopied(true);
+                        setTimeout(() => setCodeCopied(false), 2000);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-forest/15 bg-white px-4 py-3 text-sm font-medium text-forest-dark hover:bg-mint/20"
+                    >
+                      {codeCopied ? <Check className="h-4 w-4 text-[#1DB954]" /> : <Copy className="h-4 w-4" />}
+                      {codeCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  {!canChange && (
+                    <p className="mt-1.5 text-xs text-rust">
+                      You can change your friend code again in {hoursLeft} hour{hoursLeft !== 1 ? "s" : ""}.
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           <div>
