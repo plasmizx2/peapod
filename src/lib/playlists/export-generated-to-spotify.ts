@@ -24,6 +24,7 @@ export async function exportGeneratedPlaylistToSpotify(
   | {
       ok: false;
       error: "not_found" | "empty" | "not_linked" | "spotify";
+      detail?: string;
     }
 > {
   const loaded = await loadGeneratedPlaylistForUser(userId, playlistId);
@@ -35,13 +36,35 @@ export async function exportGeneratedPlaylistToSpotify(
     return { ok: false, error: "empty" };
   }
 
+  function normalizeSpotifyError(status: number, body: string): string {
+    const t = body.trim();
+    const prefix = `Spotify error (HTTP ${status}).`;
+    if (!t) return prefix;
+    if (/insufficient client scope/i.test(t)) {
+      return `${prefix} Missing permission scope — reconnect Spotify (force consent) under Music services.`;
+    }
+    if (/invalid access token|token expired|invalid_grant/i.test(t)) {
+      return `${prefix} Token rejected — reconnect Spotify under Music services.`;
+    }
+    if (status === 429 || /rate limit/i.test(t)) {
+      return `${prefix} Rate limited — try again in a minute.`;
+    }
+    return `${prefix} ${t.slice(0, 200)}`;
+  }
+
   try {
     const meRes = await spotifyUserGet(
       userId,
       "https://api.spotify.com/v1/me",
     );
     if (!meRes.ok) {
-      return { ok: false, error: "spotify" };
+      const t = await meRes.text().catch(() => "");
+      console.error("[export-spotify] /me failed", meRes.status, t.slice(0, 300));
+      return {
+        ok: false,
+        error: "spotify",
+        detail: normalizeSpotifyError(meRes.status, t),
+      };
     }
 
     const me = (await meRes.json()) as { id: string };
@@ -60,7 +83,17 @@ export async function exportGeneratedPlaylistToSpotify(
     );
 
     if (!createRes.ok) {
-      return { ok: false, error: "spotify" };
+      const t = await createRes.text().catch(() => "");
+      console.error(
+        "[export-spotify] create failed",
+        createRes.status,
+        t.slice(0, 500),
+      );
+      return {
+        ok: false,
+        error: "spotify",
+        detail: normalizeSpotifyError(createRes.status, t),
+      };
     }
 
     const created = (await createRes.json()) as {
@@ -71,7 +104,15 @@ export async function exportGeneratedPlaylistToSpotify(
     const ids = loaded.tracks.map((t) => t.spotifyId).filter(Boolean);
     const append = await appendSpotifyUrisToPlaylist(userId, created.id, ids);
     if (!append.ok) {
-      return { ok: false, error: "spotify" };
+      const detail = append.status
+        ? normalizeSpotifyError(append.status, append.error)
+        : append.error.slice(0, 200);
+      console.error(
+        "[export-spotify] append failed",
+        append.status ?? "unknown",
+        append.error.slice(0, 500),
+      );
+      return { ok: false, error: "spotify", detail };
     }
 
     const spotifyUrl =
@@ -88,7 +129,7 @@ export async function exportGeneratedPlaylistToSpotify(
       return { ok: false, error: "not_linked" };
     }
     if (e instanceof SpotifyTokenError) {
-      return { ok: false, error: "spotify" };
+      return { ok: false, error: "spotify", detail: e.message.slice(0, 200) };
     }
     throw e;
   }

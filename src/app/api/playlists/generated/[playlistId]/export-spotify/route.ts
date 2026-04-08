@@ -30,7 +30,9 @@ export async function POST(
         },
         spotify: {
           status: 502,
-          body: "Spotify could not create the playlist — try reconnecting.",
+          body:
+            out.detail ??
+            "Spotify could not create the playlist — try reconnecting.",
         },
       };
     const m = messages[out.error];
