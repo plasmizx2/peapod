@@ -103,6 +103,7 @@ export async function POST(req: Request) {
         explanation,
         tracks: loaded.tracks,
         intentLabel: presetLabel(toPreset),
+        moodEngine: loaded.moodEngine,
       });
     }
 
@@ -129,6 +130,7 @@ export async function POST(req: Request) {
       explanation,
       tracks: result.tracks,
       intentLabel: presetLabel(toPreset),
+      moodEngine: result.moodEngine,
     });
   }
 
@@ -185,5 +187,6 @@ export async function POST(req: Request) {
     explanation,
     tracks: result.tracks,
     intentLabel,
+    moodEngine: result.moodEngine,
   });
 }

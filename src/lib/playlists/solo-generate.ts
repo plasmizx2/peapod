@@ -76,12 +76,16 @@ function scorePreset(row: Row, preset: SoloPresetId): number {
   }
 }
 
+export type MoodEngine = "gemini" | "preset" | null;
+
 export type GeneratedTrackRow = {
   position: number;
   trackName: string;
   artistName: string;
   score: number;
   spotifyId: string;
+  /** Discovery picks from Spotify search (Gemini blend); always false for stats-only playlists */
+  isDiscovery: boolean;
 };
 
 export type RankedCatalogRow = {
@@ -155,6 +159,7 @@ export async function generateChatBlendedPlaylist(
 ): Promise<{
   playlistId: string;
   title: string;
+  moodEngine: MoodEngine;
   tracks: GeneratedTrackRow[];
 }> {
   const title = opts.titleOverride;
@@ -197,6 +202,8 @@ export async function generateChatBlendedPlaylist(
     }
   }
 
+  const discoveryTrackIds = new Set(discovery.map((d) => d.trackId));
+
   const merged: RankedCatalogRow[] = [...familiar, ...discovery];
   let poolIdx = CHAT_FAMILIAR;
   while (merged.length < PLAYLIST_LEN && poolIdx < pool.length) {
@@ -212,6 +219,7 @@ export async function generateChatBlendedPlaylist(
     .values({
       userId,
       sourceType: "chatbot",
+      moodEngine: "gemini",
       preset,
       title,
     })
@@ -229,6 +237,7 @@ export async function generateChatBlendedPlaylist(
         position: i + 1,
         trackId: r.trackId,
         score: r.score,
+        isDiscovery: discoveryTrackIds.has(r.trackId),
       })),
     );
   }
@@ -236,12 +245,14 @@ export async function generateChatBlendedPlaylist(
   return {
     playlistId: pl.id,
     title,
+    moodEngine: "gemini",
     tracks: finalSlice.map((r, i) => ({
       position: i + 1,
       trackName: r.trackName,
       artistName: r.artistName,
       score: r.score,
       spotifyId: r.spotifyId,
+      isDiscovery: discoveryTrackIds.has(r.trackId),
     })),
   };
 }
@@ -255,14 +266,22 @@ export async function generatePresetPlaylist(
   opts?: {
     sourceType?: "solo" | "chatbot";
     titleOverride?: string;
+    moodEngine?: MoodEngine;
   },
 ): Promise<{
   playlistId: string;
   title: string;
+  moodEngine: MoodEngine;
   tracks: GeneratedTrackRow[];
 }> {
   const sourceType = opts?.sourceType ?? "solo";
   const title = opts?.titleOverride ?? presetTitle(preset);
+  const moodEngine: MoodEngine =
+    opts?.moodEngine !== undefined
+      ? opts.moodEngine
+      : sourceType === "chatbot"
+        ? "preset"
+        : null;
 
   const scored = await rankCatalogTracksForPreset(userId, preset, PLAYLIST_LEN);
 
@@ -271,6 +290,7 @@ export async function generatePresetPlaylist(
     .values({
       userId,
       sourceType,
+      moodEngine,
       preset,
       title,
     })
@@ -287,6 +307,7 @@ export async function generatePresetPlaylist(
         position: i + 1,
         trackId: r.trackId,
         score: r.score,
+        isDiscovery: false,
       })),
     );
   }
@@ -294,12 +315,14 @@ export async function generatePresetPlaylist(
   return {
     playlistId: pl.id,
     title,
+    moodEngine,
     tracks: scored.map((r, i) => ({
       position: i + 1,
       trackName: r.trackName,
       artistName: r.artistName,
       score: r.score,
       spotifyId: r.spotifyId,
+      isDiscovery: false,
     })),
   };
 }
@@ -310,6 +333,7 @@ export async function generateSoloPlaylist(
 ): Promise<{
   playlistId: string;
   title: string;
+  moodEngine: MoodEngine;
   tracks: GeneratedTrackRow[];
 }> {
   return generatePresetPlaylist(userId, preset, { sourceType: "solo" });
@@ -322,6 +346,7 @@ export async function loadGeneratedPlaylistForUser(
   playlistId: string;
   title: string;
   preset: SoloPresetId;
+  moodEngine: MoodEngine;
   tracks: GeneratedTrackRow[];
 } | null> {
   const [pl] = await db
@@ -329,6 +354,7 @@ export async function loadGeneratedPlaylistForUser(
       id: generatedPlaylists.id,
       title: generatedPlaylists.title,
       preset: generatedPlaylists.preset,
+      moodEngine: generatedPlaylists.moodEngine,
     })
     .from(generatedPlaylists)
     .where(
@@ -348,6 +374,7 @@ export async function loadGeneratedPlaylistForUser(
       artistName: artists.name,
       score: generatedPlaylistTracks.score,
       spotifyId: tracks.spotifyId,
+      isDiscovery: generatedPlaylistTracks.isDiscovery,
     })
     .from(generatedPlaylistTracks)
     .innerJoin(tracks, eq(generatedPlaylistTracks.trackId, tracks.id))
@@ -355,16 +382,22 @@ export async function loadGeneratedPlaylistForUser(
     .where(eq(generatedPlaylistTracks.playlistId, playlistId))
     .orderBy(asc(generatedPlaylistTracks.position));
 
+  const me = pl.moodEngine;
+  const moodEngine: MoodEngine =
+    me === "gemini" || me === "preset" ? me : null;
+
   return {
     playlistId: pl.id,
     title: pl.title,
     preset: pl.preset as SoloPresetId,
+    moodEngine,
     tracks: rows.map((r) => ({
       position: r.position,
       trackName: r.trackName,
       artistName: r.artistName,
       score: r.score,
       spotifyId: r.spotifyId,
+      isDiscovery: r.isDiscovery,
     })),
   };
 }

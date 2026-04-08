@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       ok: true,
       playlistId: result.playlistId,
       title: result.title,
+      moodEngine: result.moodEngine,
       tracks: result.tracks,
     });
   } catch (e) {

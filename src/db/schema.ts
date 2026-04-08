@@ -203,6 +203,8 @@ export const generatedPlaylists = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     sourceType: text("source_type").notNull().default("solo"),
+    /** chatbot: gemini = blended + discovery; preset = keyword/heuristic only */
+    moodEngine: text("mood_engine"),
     preset: text("preset").notNull(),
     title: text("title").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -221,6 +223,8 @@ export const generatedPlaylistTracks = pgTable(
       .notNull()
       .references(() => tracks.id, { onDelete: "cascade" }),
     score: doublePrecision("score").notNull(),
+    /** Spotify search discovery slice (Gemini chat blend), not catalog-ranked familiar */
+    isDiscovery: boolean("is_discovery").notNull().default(false),
   },
   (t) => [
     primaryKey({ columns: [t.playlistId, t.position] }),

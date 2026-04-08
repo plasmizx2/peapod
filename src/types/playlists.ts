@@ -13,11 +13,14 @@ export type GeneratedPlaylistTrackClient = {
   trackName: string;
   artistName: string;
   score: number;
+  spotifyId: string;
+  isDiscovery: boolean;
 };
 
 export type GeneratePlaylistResponse = {
   ok: true;
   playlistId: string;
   title: string;
+  moodEngine: "gemini" | "preset" | null;
   tracks: GeneratedPlaylistTrackClient[];
 };

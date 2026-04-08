@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
   ExternalLink,
+  ListMusic,
   Loader2,
   Send,
   Sparkles,
@@ -16,6 +17,7 @@ type MoodTrack = {
   artistName: string;
   score: number;
   spotifyId: string;
+  isDiscovery?: boolean;
 };
 
 type MoodOk = {
@@ -26,6 +28,7 @@ type MoodOk = {
   explanation: string;
   tracks: MoodTrack[];
   intentLabel: string;
+  moodEngine?: "gemini" | "preset" | null;
 };
 
 type Message = {
@@ -63,12 +66,22 @@ export function MoodDjClient() {
     {
       id: "intro",
       role: "ai",
-      text: "What’s the vibe? Describe how you feel or what you’re doing. I’ll rank tracks from your listening history to match. PeaPod doesn’t auto-play in the browser — use “Play first in Spotify” or tap any song to open it in the Spotify app.",
+      text: "What’s the vibe? Describe how you feel or what you’re doing. I’ll rank tracks from your listening history to match (with optional AI discovery when Gemini is enabled). PeaPod doesn’t auto-play in the browser — open tracks in Spotify, or save the full list to your Spotify account.",
     },
   ]);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exportingPlaylistId, setExportingPlaylistId] = useState<string | null>(
+    null,
+  );
+  const [exportError, setExportError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const lastPlaylistWithResult = [...messages]
+    .reverse()
+    .find((m) => m.result?.tracks && m.result.tracks.length > 0);
+  const showGeminiActive =
+    lastPlaylistWithResult?.result?.moodEngine === "gemini";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,6 +97,7 @@ export function MoodDjClient() {
     setMessages((prev) => [...prev, userMsg]);
     setPrompt("");
     setLoading(true);
+    setExportError(null);
 
     try {
       const res = await fetch("/api/chat/mood", {
@@ -116,6 +130,35 @@ export function MoodDjClient() {
       ]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function exportToSpotify(playlistId: string) {
+    setExportError(null);
+    setExportingPlaylistId(playlistId);
+    try {
+      const res = await fetch(
+        `/api/playlists/generated/${encodeURIComponent(playlistId)}/export-spotify`,
+        { method: "POST" },
+      );
+      const data = (await res.json()) as {
+        ok?: boolean;
+        spotifyUrl?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.ok || !data.spotifyUrl) {
+        setExportError(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not save playlist to Spotify.",
+        );
+        return;
+      }
+      window.open(data.spotifyUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      setExportError("Network error while saving to Spotify.");
+    } finally {
+      setExportingPlaylistId(null);
     }
   }
 
@@ -197,6 +240,17 @@ export function MoodDjClient() {
           <p className="text-xs font-medium text-moss">
             Your intelligent DJ. Powered by your patterns.
           </p>
+          {showGeminiActive ? (
+            <div className="mt-2 flex items-center gap-2">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.7)] animate-pulse"
+                aria-hidden
+              />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800/90">
+                PeaPod AI blend active
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -243,6 +297,12 @@ export function MoodDjClient() {
                     <h4 className="leading-tight font-bold text-forest-dark">
                       {msg.result.title}
                     </h4>
+                    {msg.result.moodEngine === "gemini" ? (
+                      <p className="mt-1 text-[10px] leading-snug text-emerald-900/80">
+                        Includes ~20% discovery picks (labeled “New pick”) from
+                        Spotify search, chosen to match your vibe.
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="border-b border-sage/15 bg-white/40 px-4 py-3">
@@ -250,21 +310,41 @@ export function MoodDjClient() {
                       <span className="font-medium text-forest-dark">
                         Playback:
                       </span>{" "}
-                      This list lives in PeaPod. Open Spotify to hear it — we
-                      don’t start audio in the browser (that would need Spotify
-                      Premium + extra setup).
+                      This list lives in PeaPod first. Open Spotify to hear
+                      tracks, or save the full playlist to your Spotify
+                      account (requires Spotify linked under Music services).
                     </p>
-                    {msg.result.tracks[0]?.spotifyId ? (
-                      <a
-                        href={spotifyTrackUrl(msg.result.tracks[0].spotifyId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 inline-flex items-center gap-2 rounded-xl bg-[#1DB954] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#1ed760]"
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      {msg.result.tracks[0]?.spotifyId ? (
+                        <a
+                          href={spotifyTrackUrl(msg.result.tracks[0].spotifyId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1DB954] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#1ed760]"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                          Play first song in Spotify
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={
+                          exportingPlaylistId === msg.result.playlistId ||
+                          loading
+                        }
+                        onClick={() =>
+                          void exportToSpotify(msg.result!.playlistId)
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#1DB954]/40 bg-white px-3 py-2 text-xs font-semibold text-forest-dark shadow-sm transition hover:bg-mint-light/50 disabled:opacity-40"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                        Play first song in Spotify
-                      </a>
-                    ) : null}
+                        {exportingPlaylistId === msg.result.playlistId ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ListMusic className="h-3.5 w-3.5 text-[#1DB954]" />
+                        )}
+                        Save playlist to my Spotify
+                      </button>
+                    </div>
                   </div>
 
                   <div className="p-4">
@@ -282,11 +362,16 @@ export function MoodDjClient() {
                               href={spotifyTrackUrl(t.spotifyId)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="group inline-flex items-start gap-1.5 text-[13px] font-semibold leading-tight text-forest-dark underline decoration-sage/30 underline-offset-2 hover:text-sage hover:decoration-sage"
+                              className="group inline-flex flex-wrap items-center gap-1.5 text-[13px] font-semibold leading-tight text-forest-dark underline decoration-sage/30 underline-offset-2 hover:text-sage hover:decoration-sage"
                             >
                               <span className="min-w-0 break-words">
                                 {t.trackName}
                               </span>
+                              {t.isDiscovery ? (
+                                <span className="shrink-0 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-900 no-underline">
+                                  New pick
+                                </span>
+                              ) : null}
                               <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 opacity-50 group-hover:opacity-100" />
                             </a>
                             <span className="text-[11px] text-moss line-clamp-1">
@@ -303,8 +388,10 @@ export function MoodDjClient() {
                       Adjust the mix
                     </span>
                     <p className="mb-3 text-[11px] leading-snug text-moss">
-                      Fine-tune without typing. Buttons apply to this playlist
-                      only.
+                      Fine-tune without typing. This updates the PeaPod list only
+                      — it does not change Spotify playback. After Lift or Shift,
+                      open a track or save to Spotify again to hear the new mix.
+                      Same vibe keeps this exact list.
                     </p>
                     <div className="flex w-full flex-col gap-2 sm:flex-row">
                       {TUNE_ACTIONS.map(({ key, label, hint }) => (
@@ -358,6 +445,11 @@ export function MoodDjClient() {
 
       {/* Input Form */}
       <div className="border-t border-forest/10 bg-white/50 px-6 py-5">
+        {exportError ? (
+          <p className="mb-3 text-center text-[11px] text-rust" role="alert">
+            {exportError}
+          </p>
+        ) : null}
         <form
           onSubmit={(e) => {
             e.preventDefault();
