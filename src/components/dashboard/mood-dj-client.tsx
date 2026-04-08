@@ -61,6 +61,22 @@ function spotifyTrackUrl(spotifyId: string) {
   return `https://open.spotify.com/track/${spotifyId}`;
 }
 
+/** Avoids throwing when the server returns HTML (e.g. 500 page) instead of JSON. */
+async function readMoodApiJson(res: Response): Promise<{
+  data: Record<string, unknown>;
+  parseFailed: boolean;
+}> {
+  const text = await res.text();
+  if (!text.trim()) {
+    return { data: {}, parseFailed: false };
+  }
+  try {
+    return { data: JSON.parse(text) as Record<string, unknown>, parseFailed: false };
+  } catch {
+    return { data: {}, parseFailed: true };
+  }
+}
+
 export function MoodDjClient() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -105,17 +121,31 @@ export function MoodDjClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: text }),
       });
-      const data = await res.json();
+      const { data, parseFailed } = await readMoodApiJson(res);
+
+      if (parseFailed) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "ai",
+            text: `Server error (HTTP ${res.status}). The app may have crashed — check Render logs and that the latest database migration ran.`,
+          },
+        ]);
+        return;
+      }
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "ai",
         text: data?.ok
-          ? data.explanation
+          ? String(data.explanation ?? "")
           : typeof data?.error === "string"
             ? data.error
-            : "Request failed",
-        result: data?.ok ? (data as MoodOk) : undefined,
+            : res.ok
+              ? "Request failed"
+              : `Request failed (HTTP ${res.status}).`,
+        result: data?.ok ? (data as unknown as MoodOk) : undefined,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -125,7 +155,7 @@ export function MoodDjClient() {
         {
           id: (Date.now() + 1).toString(),
           role: "ai",
-          text: "Network error — I couldn't process that right now.",
+          text: "Network error — no response from the server. Check your connection or try again.",
         },
       ]);
     } finally {
@@ -181,7 +211,21 @@ export function MoodDjClient() {
           lastPlaylistId: playlistId,
         }),
       });
-      const data = await res.json();
+      const { data, parseFailed } = await readMoodApiJson(res);
+
+      if (parseFailed) {
+        setMessages((prev) => [
+          ...prev.map((m) =>
+            m.id === msgId ? { ...m, isAdjusting: false } : m,
+          ),
+          {
+            id: Date.now().toString(),
+            role: "ai",
+            text: `Server error (HTTP ${res.status}). Check deployment logs and database migrations.`,
+          },
+        ]);
+        return;
+      }
 
       if (res.ok && data?.ok) {
         setMessages((prev) => [
@@ -206,7 +250,7 @@ export function MoodDjClient() {
             text:
               typeof data?.error === "string"
                 ? data.error
-                : "Couldn’t adjust the mix.",
+                : `Couldn’t adjust the mix (HTTP ${res.status}).`,
           },
         ]);
       }
@@ -218,7 +262,7 @@ export function MoodDjClient() {
         {
           id: Date.now().toString(),
           role: "ai",
-          text: "Network error while adjusting.",
+          text: "Network error while adjusting — try again.",
         },
       ]);
     } finally {

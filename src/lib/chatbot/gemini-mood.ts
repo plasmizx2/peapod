@@ -16,7 +16,8 @@ type GeminiJson = {
   discovery_queries?: unknown;
 };
 
-const MODEL = "gemini-2.0-flash";
+/** Gemini 2.5 Flash — matches AI Studio “Gemini 2.5 Flash” (generativelanguage API id). */
+const MODEL = "gemini-2.5-flash";
 
 /**
  * Uses Google Gemini to map the user prompt + pattern summary to a preset and
