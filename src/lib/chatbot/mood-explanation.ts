@@ -1,5 +1,10 @@
 import type { SoloPresetId } from "@/lib/playlists/presets";
 import { presetLabel } from "@/lib/playlists/presets";
+import type { GeminiMoodPlan } from "@/lib/chatbot/gemini-mood";
+
+export function buildGeminiMoodExplanation(plan: GeminiMoodPlan): string {
+  return `${plan.reasoning} Roughly 80% from tracks that match your listening patterns for this vibe; about 20% are discovery picks from Spotify search using queries tuned to you.`;
+}
 
 export function buildMoodExplanation(
   preset: SoloPresetId,

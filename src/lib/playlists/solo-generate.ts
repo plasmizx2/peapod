@@ -7,6 +7,8 @@ import {
   tracks,
   userTrackStats,
 } from "@/db/schema";
+import { upsertCatalogTrack } from "@/lib/spotify/catalog-track";
+import { searchSpotifyTracksInternal } from "@/lib/spotify/search-tracks-internal";
 import type { SoloPresetId } from "@/lib/playlists/presets";
 import { presetTitle } from "@/lib/playlists/presets";
 
@@ -79,7 +81,170 @@ export type GeneratedTrackRow = {
   trackName: string;
   artistName: string;
   score: number;
+  spotifyId: string;
 };
+
+export type RankedCatalogRow = {
+  trackId: string;
+  spotifyId: string;
+  trackName: string;
+  artistName: string;
+  score: number;
+};
+
+const PLAYLIST_LEN = 28;
+const CHAT_FAMILIAR = 22;
+const CHAT_DISCOVERY = 6;
+
+/**
+ * Ranks catalog tracks for a preset (no DB write).
+ */
+export async function rankCatalogTracksForPreset(
+  userId: string,
+  preset: SoloPresetId,
+  limit: number,
+): Promise<RankedCatalogRow[]> {
+  const rows = await db
+    .select({
+      trackId: userTrackStats.trackId,
+      playCount: userTrackStats.playCount,
+      nightPlayCount: userTrackStats.nightPlayCount,
+      lastListenedAt: userTrackStats.lastListenedAt,
+      spotifyId: tracks.spotifyId,
+      trackName: tracks.name,
+      artistName: artists.name,
+    })
+    .from(userTrackStats)
+    .innerJoin(tracks, eq(userTrackStats.trackId, tracks.id))
+    .innerJoin(artists, eq(tracks.primaryArtistId, artists.id))
+    .where(eq(userTrackStats.userId, userId))
+    .orderBy(desc(userTrackStats.playCount));
+
+  return rows
+    .map((r) => ({
+      trackId: r.trackId,
+      spotifyId: r.spotifyId,
+      trackName: r.trackName,
+      artistName: r.artistName,
+      score: scorePreset(
+        {
+          trackId: r.trackId,
+          playCount: r.playCount,
+          nightPlayCount: r.nightPlayCount,
+          lastListenedAt: r.lastListenedAt,
+          trackName: r.trackName,
+          artistName: r.artistName,
+        },
+        preset,
+      ),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+/**
+ * ~80% tracks from your stats for this preset, ~20% from Spotify search using Gemini queries.
+ */
+export async function generateChatBlendedPlaylist(
+  userId: string,
+  preset: SoloPresetId,
+  opts: {
+    titleOverride: string;
+    discoveryQueries: string[];
+  },
+): Promise<{
+  playlistId: string;
+  title: string;
+  tracks: GeneratedTrackRow[];
+}> {
+  const title = opts.titleOverride;
+  const pool = await rankCatalogTracksForPreset(
+    userId,
+    preset,
+    Math.max(PLAYLIST_LEN * 2, 40),
+  );
+  const familiar = pool.slice(0, CHAT_FAMILIAR);
+  const usedSpotify = new Set(familiar.map((f) => f.spotifyId));
+  const usedTrackIds = new Set(familiar.map((f) => f.trackId));
+
+  const discovery: RankedCatalogRow[] = [];
+
+  async function searchSafe(q: string) {
+    try {
+      return await searchSpotifyTracksInternal(userId, q, 8);
+    } catch {
+      return [];
+    }
+  }
+
+  outer: for (const q of opts.discoveryQueries) {
+    if (discovery.length >= CHAT_DISCOVERY) break;
+    const hits = await searchSafe(q);
+    for (const hit of hits) {
+      if (discovery.length >= CHAT_DISCOVERY) break outer;
+      if (usedSpotify.has(hit.id)) continue;
+      const tid = await upsertCatalogTrack(hit);
+      if (!tid || usedTrackIds.has(tid)) continue;
+      usedSpotify.add(hit.id);
+      usedTrackIds.add(tid);
+      discovery.push({
+        trackId: tid,
+        spotifyId: hit.id,
+        trackName: hit.name,
+        artistName: hit.artists[0]?.name ?? "Unknown",
+        score: 0,
+      });
+    }
+  }
+
+  const merged: RankedCatalogRow[] = [...familiar, ...discovery];
+  let poolIdx = CHAT_FAMILIAR;
+  while (merged.length < PLAYLIST_LEN && poolIdx < pool.length) {
+    const r = pool[poolIdx]!;
+    poolIdx += 1;
+    if (usedTrackIds.has(r.trackId)) continue;
+    usedTrackIds.add(r.trackId);
+    merged.push(r);
+  }
+
+  const [pl] = await db
+    .insert(generatedPlaylists)
+    .values({
+      userId,
+      sourceType: "chatbot",
+      preset,
+      title,
+    })
+    .returning({ id: generatedPlaylists.id });
+
+  if (!pl) {
+    throw new Error("Could not create playlist");
+  }
+
+  const finalSlice = merged.slice(0, PLAYLIST_LEN);
+  if (finalSlice.length > 0) {
+    await db.insert(generatedPlaylistTracks).values(
+      finalSlice.map((r, i) => ({
+        playlistId: pl.id,
+        position: i + 1,
+        trackId: r.trackId,
+        score: r.score,
+      })),
+    );
+  }
+
+  return {
+    playlistId: pl.id,
+    title,
+    tracks: finalSlice.map((r, i) => ({
+      position: i + 1,
+      trackName: r.trackName,
+      artistName: r.artistName,
+      score: r.score,
+      spotifyId: r.spotifyId,
+    })),
+  };
+}
 
 /**
  * Ranks tracks from materialized stats, persists a `generated_playlists` row + tracks.
@@ -99,38 +264,7 @@ export async function generatePresetPlaylist(
   const sourceType = opts?.sourceType ?? "solo";
   const title = opts?.titleOverride ?? presetTitle(preset);
 
-  const rows = await db
-    .select({
-      trackId: userTrackStats.trackId,
-      playCount: userTrackStats.playCount,
-      nightPlayCount: userTrackStats.nightPlayCount,
-      lastListenedAt: userTrackStats.lastListenedAt,
-      trackName: tracks.name,
-      artistName: artists.name,
-    })
-    .from(userTrackStats)
-    .innerJoin(tracks, eq(userTrackStats.trackId, tracks.id))
-    .innerJoin(artists, eq(tracks.primaryArtistId, artists.id))
-    .where(eq(userTrackStats.userId, userId))
-    .orderBy(desc(userTrackStats.playCount));
-
-  const scored = rows
-    .map((r) => ({
-      ...r,
-      score: scorePreset(
-        {
-          trackId: r.trackId,
-          playCount: r.playCount,
-          nightPlayCount: r.nightPlayCount,
-          lastListenedAt: r.lastListenedAt,
-          trackName: r.trackName,
-          artistName: r.artistName,
-        },
-        preset,
-      ),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 28);
+  const scored = await rankCatalogTracksForPreset(userId, preset, PLAYLIST_LEN);
 
   const [pl] = await db
     .insert(generatedPlaylists)
@@ -165,6 +299,7 @@ export async function generatePresetPlaylist(
       trackName: r.trackName,
       artistName: r.artistName,
       score: r.score,
+      spotifyId: r.spotifyId,
     })),
   };
 }
@@ -212,6 +347,7 @@ export async function loadGeneratedPlaylistForUser(
       trackName: tracks.name,
       artistName: artists.name,
       score: generatedPlaylistTracks.score,
+      spotifyId: tracks.spotifyId,
     })
     .from(generatedPlaylistTracks)
     .innerJoin(tracks, eq(generatedPlaylistTracks.trackId, tracks.id))
@@ -228,6 +364,7 @@ export async function loadGeneratedPlaylistForUser(
       trackName: r.trackName,
       artistName: r.artistName,
       score: r.score,
+      spotifyId: r.spotifyId,
     })),
   };
 }

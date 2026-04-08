@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Loader2, Send, Sparkles, User, RefreshCw, Layers } from "lucide-react";
+import {
+  ExternalLink,
+  Loader2,
+  Send,
+  Sparkles,
+  Layers,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 type MoodTrack = {
@@ -9,6 +15,7 @@ type MoodTrack = {
   trackName: string;
   artistName: string;
   score: number;
+  spotifyId: string;
 };
 
 type MoodOk = {
@@ -29,12 +36,34 @@ type Message = {
   isAdjusting?: boolean;
 };
 
+const TUNE_ACTIONS = [
+  {
+    key: "lift" as const,
+    label: "More energy",
+    hint: "Switches to a higher-energy mix (workout-style picks from your history).",
+  },
+  {
+    key: "stay" as const,
+    label: "Same vibe",
+    hint: "Keeps the same mood; use after a small prompt change or to confirm you like this direction.",
+  },
+  {
+    key: "shift" as const,
+    label: "Different mood",
+    hint: "Rotates through other moods (late night → gym → focus → nostalgic).",
+  },
+];
+
+function spotifyTrackUrl(spotifyId: string) {
+  return `https://open.spotify.com/track/${spotifyId}`;
+}
+
 export function MoodDjClient() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "intro",
       role: "ai",
-      text: "What's the vibe? Describe how you feel, what you're doing, or the exact energy you're looking for, and I'll spin up the perfect queue.",
+      text: "What’s the vibe? Describe how you feel or what you’re doing. I’ll rank tracks from your listening history to match. PeaPod doesn’t auto-play in the browser — use “Play first in Spotify” or tap any song to open it in the Spotify app.",
     },
   ]);
   const [prompt, setPrompt] = useState("");
@@ -63,29 +92,43 @@ export function MoodDjClient() {
         body: JSON.stringify({ prompt: text }),
       });
       const data = await res.json();
-      
+
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: "ai",
-        text: data?.ok ? data.explanation : (typeof data?.error === "string" ? data.error : "Request failed"),
+        text: data?.ok
+          ? data.explanation
+          : typeof data?.error === "string"
+            ? data.error
+            : "Request failed",
         result: data?.ok ? (data as MoodOk) : undefined,
       };
-      
+
       setMessages((prev) => [...prev, aiMsg]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: "ai", text: "Network error — I couldn't process that right now." },
+        {
+          id: (Date.now() + 1).toString(),
+          role: "ai",
+          text: "Network error — I couldn't process that right now.",
+        },
       ]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function adjust(msgId: string, playlistId: string, adjustment: "lift" | "stay" | "shift") {
+  async function adjust(
+    msgId: string,
+    playlistId: string,
+    adjustment: "lift" | "stay" | "shift",
+  ) {
     setLoading(true);
-    setMessages((prev) => prev.map(m => m.id === msgId ? { ...m, isAdjusting: true } : m));
-    
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, isAdjusting: true } : m)),
+    );
+
     try {
       const res = await fetch("/api/chat/mood", {
         method: "POST",
@@ -96,27 +139,44 @@ export function MoodDjClient() {
         }),
       });
       const data = await res.json();
-      
+
       if (res.ok && data?.ok) {
         setMessages((prev) => [
-          ...prev.map(m => m.id === msgId ? { ...m, isAdjusting: false } : m),
+          ...prev.map((m) =>
+            m.id === msgId ? { ...m, isAdjusting: false } : m,
+          ),
           {
             id: Date.now().toString(),
             role: "ai",
-            text: `Re-tuned the queue: ${data.explanation}`,
+            text: `Updated the mix: ${data.explanation}`,
             result: data as MoodOk,
-          }
+          },
         ]);
       } else {
         setMessages((prev) => [
-           ...prev.map(m => m.id === msgId ? { ...m, isAdjusting: false } : m),
-           { id: Date.now().toString(), role: "ai", text: typeof data?.error === "string" ? data.error : "Failed to adjust queue." }
+          ...prev.map((m) =>
+            m.id === msgId ? { ...m, isAdjusting: false } : m,
+          ),
+          {
+            id: Date.now().toString(),
+            role: "ai",
+            text:
+              typeof data?.error === "string"
+                ? data.error
+                : "Couldn’t adjust the mix.",
+          },
         ]);
       }
     } catch {
       setMessages((prev) => [
-         ...prev.map(m => m.id === msgId ? { ...m, isAdjusting: false } : m),
-         { id: Date.now().toString(), role: "ai", text: "Network error while adjusting." }
+        ...prev.map((m) =>
+          m.id === msgId ? { ...m, isAdjusting: false } : m,
+        ),
+        {
+          id: Date.now().toString(),
+          role: "ai",
+          text: "Network error while adjusting.",
+        },
       ]);
     } finally {
       setLoading(false);
@@ -124,20 +184,24 @@ export function MoodDjClient() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-140px)] flex-col rounded-3xl border border-forest/10 bg-white/80 shadow-2xl backdrop-blur-md overflow-hidden">
+    <div className="flex h-[calc(100vh-140px)] flex-col overflow-hidden rounded-3xl border border-forest/10 bg-white/80 shadow-2xl backdrop-blur-md">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-forest/10 bg-mint-light/50 px-6 py-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sage text-white shadow-sm">
           <Sparkles className="h-5 w-5" />
         </div>
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-forest-dark">PeaPod AI</h2>
-          <p className="text-xs font-medium text-moss">Your intelligent DJ. Powered by your patterns.</p>
+          <h2 className="text-xl font-bold tracking-tight text-forest-dark">
+            PeaPod AI
+          </h2>
+          <p className="text-xs font-medium text-moss">
+            Your intelligent DJ. Powered by your patterns.
+          </p>
         </div>
       </div>
 
       {/* Chat History */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 hide-scrollbar">
+      <div className="hide-scrollbar flex-1 space-y-8 overflow-y-auto p-6">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
@@ -145,16 +209,20 @@ export function MoodDjClient() {
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.3 }}
-                className={`flex flex-col gap-2 max-w-[85%] ${msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"}`}
+              className={`flex max-w-[85%] flex-col gap-2 ${msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"}`}
             >
               <div className="flex items-center gap-2 px-2">
                 {msg.role === "ai" ? (
-                  <span className="text-xs font-bold uppercase tracking-wider text-sage">AI DJ</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-sage">
+                    AI DJ
+                  </span>
                 ) : (
-                  <span className="text-xs font-bold uppercase tracking-wider text-forest-dark/50">You</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-forest-dark/50">
+                    You
+                  </span>
                 )}
               </div>
-              
+
               <div
                 className={`p-4 text-[15px] leading-relaxed shadow-sm ${
                   msg.role === "user"
@@ -166,53 +234,110 @@ export function MoodDjClient() {
               </div>
 
               {/* Rich Playlist Card */}
-              {msg.result && (
-                <div className="mt-2 w-full min-w-[280px] max-w-sm rounded-2xl border border-sage/20 bg-mint-light/30 overflow-hidden shadow-sm">
-                  <div className="bg-sage/10 px-4 py-3 border-b border-sage/20 flex flex-col gap-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-moss/80">{msg.result.intentLabel}</span>
-                    <h4 className="font-bold text-forest-dark leading-tight">{msg.result.title}</h4>
+              {msg.result && msg.result.tracks.length > 0 ? (
+                <div className="mt-2 w-full min-w-[280px] max-w-sm overflow-hidden rounded-2xl border border-sage/20 bg-mint-light/30 shadow-sm">
+                  <div className="flex flex-col gap-1 border-b border-sage/20 bg-sage/10 px-4 py-3">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-moss/80">
+                      {msg.result.intentLabel}
+                    </span>
+                    <h4 className="leading-tight font-bold text-forest-dark">
+                      {msg.result.title}
+                    </h4>
                   </div>
+
+                  <div className="border-b border-sage/15 bg-white/40 px-4 py-3">
+                    <p className="text-[11px] leading-relaxed text-moss">
+                      <span className="font-medium text-forest-dark">
+                        Playback:
+                      </span>{" "}
+                      This list lives in PeaPod. Open Spotify to hear it — we
+                      don’t start audio in the browser (that would need Spotify
+                      Premium + extra setup).
+                    </p>
+                    {msg.result.tracks[0]?.spotifyId ? (
+                      <a
+                        href={spotifyTrackUrl(msg.result.tracks[0].spotifyId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-2 rounded-xl bg-[#1DB954] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#1ed760]"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                        Play first song in Spotify
+                      </a>
+                    ) : null}
+                  </div>
+
                   <div className="p-4">
-                    {msg.result.tracks.length > 0 ? (
-                      <ol className="flex flex-col gap-3">
-                        {msg.result.tracks.map((t) => (
-                          <li key={`${t.position}-${t.trackName}`} className="flex items-start gap-3">
-                            <span className="text-xs font-medium text-moss/50 w-4 text-right pt-[2px]">{t.position}</span>
-                            <div className="flex flex-col">
-                              <span className="text-[13px] font-semibold text-forest-dark leading-tight">{t.trackName}</span>
-                              <span className="text-[11px] text-moss line-clamp-1">{t.artistName}</span>
-                            </div>
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      <p className="text-[13px] text-moss italic">No playable tracks matched.</p>
-                    )}
+                    <ol className="flex flex-col gap-3">
+                      {msg.result.tracks.map((t) => (
+                        <li
+                          key={`${t.position}-${t.trackName}`}
+                          className="flex items-start gap-3"
+                        >
+                          <span className="w-4 pt-[2px] text-right text-xs font-medium text-moss/50">
+                            {t.position}
+                          </span>
+                          <div className="min-w-0 flex-1 flex-col">
+                            <a
+                              href={spotifyTrackUrl(t.spotifyId)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group inline-flex items-start gap-1.5 text-[13px] font-semibold leading-tight text-forest-dark underline decoration-sage/30 underline-offset-2 hover:text-sage hover:decoration-sage"
+                            >
+                              <span className="min-w-0 break-words">
+                                {t.trackName}
+                              </span>
+                              <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 opacity-50 group-hover:opacity-100" />
+                            </a>
+                            <span className="text-[11px] text-moss line-clamp-1">
+                              {t.artistName}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
                   </div>
+
                   <div className="border-t border-sage/20 bg-sage/5 px-4 py-3 pb-4">
-                    <span className="block mb-2 text-[10px] font-bold uppercase tracking-widest text-moss/70">Tune It</span>
-                    <div className="flex items-center gap-2 w-full">
-                      {(
-                        [
-                          ["lift", "Lift"],
-                          ["stay", "Stay"],
-                          ["shift", "Shift"],
-                        ] as const
-                      ).map(([key, label]) => (
+                    <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-moss/70">
+                      Adjust the mix
+                    </span>
+                    <p className="mb-3 text-[11px] leading-snug text-moss">
+                      Fine-tune without typing. Buttons apply to this playlist
+                      only.
+                    </p>
+                    <div className="flex w-full flex-col gap-2 sm:flex-row">
+                      {TUNE_ACTIONS.map(({ key, label, hint }) => (
                         <button
                           key={key}
                           type="button"
+                          title={hint}
                           disabled={msg.isAdjusting || loading}
-                          onClick={() => adjust(msg.id, msg.result!.playlistId, key)}
-                          className="flex-1 shrink-0 rounded-xl bg-white border border-sage/30 px-2 py-1.5 text-xs font-semibold text-forest-dark transition hover:bg-sage/10 disabled:opacity-40 disabled:hover:bg-white"
+                          onClick={() =>
+                            void adjust(msg.id, msg.result!.playlistId, key)
+                          }
+                          className="flex min-h-[2.75rem] flex-1 flex-col items-center justify-center rounded-xl border border-sage/30 bg-white px-2 py-2 text-center transition hover:bg-sage/10 disabled:opacity-40 disabled:hover:bg-white"
                         >
-                          {label}
+                          <span className="text-xs font-semibold text-forest-dark">
+                            {label}
+                          </span>
+                          <span className="mt-0.5 hidden text-[10px] leading-tight text-moss/80 sm:block">
+                            {key === "lift"
+                              ? "Higher energy"
+                              : key === "stay"
+                                ? "Keep preset"
+                                : "Rotate mood"}
+                          </span>
                         </button>
                       ))}
                     </div>
                   </div>
                 </div>
-              )}
+              ) : msg.result && msg.result.tracks.length === 0 ? (
+                <div className="mt-2 rounded-2xl border border-sage/20 bg-mint-light/30 p-4 text-[13px] text-moss italic">
+                  No playable tracks matched.
+                </div>
+              ) : null}
             </motion.div>
           ))}
           {loading && (
@@ -221,7 +346,7 @@ export function MoodDjClient() {
               animate={{ opacity: 1 }}
               className="mr-auto flex max-w-[85%] items-start gap-2"
             >
-              <div className="flex items-center gap-2 p-4 text-[15px] rounded-2xl rounded-tl-sm border border-forest/10 bg-cream text-moss">
+              <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-forest/10 bg-cream p-4 text-[15px] text-moss">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Spinning up records...</span>
               </div>
@@ -232,13 +357,13 @@ export function MoodDjClient() {
       </div>
 
       {/* Input Form */}
-      <div className="px-6 py-5 bg-white/50 border-t border-forest/10">
+      <div className="border-t border-forest/10 bg-white/50 px-6 py-5">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             void send(prompt);
           }}
-          className="flex gap-2 relative bg-transparent"
+          className="relative flex gap-2 bg-transparent"
         >
           <input
             type="text"
@@ -246,18 +371,19 @@ export function MoodDjClient() {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="e.g. moody instrumental hip hop to code to..."
-            className="w-full h-[52px] rounded-2xl border border-forest/20 bg-white pl-5 pr-14 text-[15px] text-forest-dark shadow-sm transition placeholder:text-moss/60 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/20 disabled:opacity-50"
+            className="h-[52px] w-full rounded-2xl border border-forest/20 bg-white pl-5 pr-14 text-[15px] text-forest-dark shadow-sm transition placeholder:text-moss/60 focus:border-sage focus:outline-none focus:ring-2 focus:ring-sage/20 disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={!prompt.trim() || loading}
-            className="absolute right-2 top-1.5 bottom-1.5 flex w-10 items-center justify-center rounded-xl bg-forest text-mint-light transition hover:bg-forest-dark focus:outline-none focus:ring-2 focus:ring-forest/50 disabled:bg-forest/30 disabled:text-mint-light"
+            className="absolute bottom-1.5 right-2 top-1.5 flex w-10 items-center justify-center rounded-xl bg-forest text-mint-light transition hover:bg-forest-dark focus:outline-none focus:ring-2 focus:ring-forest/50 disabled:bg-forest/30 disabled:text-mint-light"
           >
             <Send className="h-4 w-4" />
           </button>
         </form>
         <div className="mt-3 flex items-center justify-center gap-1.5 text-center text-[10px] font-medium uppercase tracking-widest text-moss/50">
-          <Layers className="h-3 w-3" /> Creates a live Spotify queue
+          <Layers className="h-3 w-3" aria-hidden />
+          Saved in PeaPod · open tracks in Spotify to play
         </div>
       </div>
     </div>

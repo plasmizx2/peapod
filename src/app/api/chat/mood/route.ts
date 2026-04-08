@@ -4,14 +4,19 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { chatbotRequests, userTrackStats } from "@/db/schema";
 import { applyMoodAdjustment } from "@/lib/chatbot/adjust-preset";
+import { planMoodWithGemini } from "@/lib/chatbot/gemini-mood";
 import { mapPromptToPreset } from "@/lib/chatbot/map-intent";
 import {
   buildAdjustmentExplanation,
+  buildGeminiMoodExplanation,
   buildMoodExplanation,
 } from "@/lib/chatbot/mood-explanation";
+import { buildUserPatternContextBlock } from "@/lib/chatbot/user-pattern-context";
 import { ensureUserListeningStats } from "@/lib/data/rebuild-user-stats";
+import type { SoloPresetId } from "@/lib/playlists/presets";
 import { presetLabel } from "@/lib/playlists/presets";
 import {
+  generateChatBlendedPlaylist,
   generatePresetPlaylist,
   loadGeneratedPlaylistForUser,
 } from "@/lib/playlists/solo-generate";
@@ -135,12 +140,32 @@ export async function POST(req: Request) {
     );
   }
 
-  const { preset, intentLabel } = mapPromptToPreset(prompt);
-  const explanation = buildMoodExplanation(preset, intentLabel);
-  const result = await generatePresetPlaylist(userId, preset, {
-    sourceType: "chatbot",
-    titleOverride: `Chat — ${presetLabel(preset)}`,
-  });
+  const patternContext = await buildUserPatternContextBlock(userId);
+  const geminiPlan = await planMoodWithGemini(prompt, patternContext);
+
+  let preset: SoloPresetId;
+  let intentLabel: string;
+  let explanation: string;
+  let result: Awaited<ReturnType<typeof generatePresetPlaylist>>;
+
+  if (geminiPlan) {
+    preset = geminiPlan.preset;
+    intentLabel = geminiPlan.intentLabel;
+    explanation = buildGeminiMoodExplanation(geminiPlan);
+    result = await generateChatBlendedPlaylist(userId, preset, {
+      titleOverride: `Chat — ${presetLabel(preset)}`,
+      discoveryQueries: geminiPlan.discoveryQueries,
+    });
+  } else {
+    const mapped = mapPromptToPreset(prompt);
+    preset = mapped.preset;
+    intentLabel = mapped.intentLabel;
+    explanation = buildMoodExplanation(preset, intentLabel);
+    result = await generatePresetPlaylist(userId, preset, {
+      sourceType: "chatbot",
+      titleOverride: `Chat — ${presetLabel(preset)}`,
+    });
+  }
 
   await db.insert(chatbotRequests).values({
     userId,
