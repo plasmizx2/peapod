@@ -16,8 +16,11 @@ type GeminiJson = {
   discovery_queries?: unknown;
 };
 
-/** Gemini 2.5 Flash — matches AI Studio “Gemini 2.5 Flash” (generativelanguage API id). */
-const MODEL = "gemini-2.5-flash";
+/**
+ * Gemini model id for generativelanguage API.
+ * Default: Gemini 2.0 Flash (fast + widely available).
+ */
+const DEFAULT_MODEL = "gemini-2.0-flash";
 
 /**
  * Uses Google Gemini to map the user prompt + pattern summary to a preset and
@@ -31,6 +34,7 @@ export async function planMoodWithGemini(
   if (!key) {
     return null;
   }
+  const model = (process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL).slice(0, 80);
 
   const system = `You are PeaPod's DJ brain. Choose music intent from the user's message and their real listening patterns.
 
@@ -49,7 +53,7 @@ Rules:
 
   const user = `User message:\n${userPrompt.slice(0, 2000)}\n\nTheir patterns:\n${patternContext.slice(0, 4000)}`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
 
   try {
     const res = await fetch(url, {
