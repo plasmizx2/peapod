@@ -17,6 +17,10 @@ export default withSentryConfig(
     silent: true,
     org: process.env.SENTRY_ORG,
     project: process.env.SENTRY_PROJECT,
+
+    // ONLY CUSTOMIZE THIS IF YOU WANT TO DISABLE SENTRY DURING BUILD
+    // If the SENTRY_AUTH_TOKEN is missing, we skip the upload to prevent build failure
+    dryRun: !process.env.SENTRY_AUTH_TOKEN,
   },
   {
     // For all available options, see:
